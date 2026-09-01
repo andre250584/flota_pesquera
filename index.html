@@ -24,7 +24,9 @@
   .wrap{max-width:1180px;margin:0 auto;padding:0 18px 48px}
 
   /* Cabecera institucional */
-  header{position:relative;overflow:hidden;background:linear-gradient(100deg,var(--rojo-osc2),var(--rojo) 60%);color:#fff;padding:20px 0}
+  /* El padding inferior reserva la franja donde suben las tarjetas (-24px):
+     debajo del contenido tiene que sobrar mas de eso o las tarjetas lo tapan. */
+  header{position:relative;overflow:hidden;background:linear-gradient(100deg,var(--rojo-osc2),var(--rojo) 60%);color:#fff;padding:20px 0 34px}
   .head-in{max-width:1180px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;position:relative;z-index:2}
   .brand{display:flex;align-items:center;gap:18px}
   .produce-logo{display:flex;flex-direction:column;line-height:1}
