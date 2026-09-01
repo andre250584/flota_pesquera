@@ -44,7 +44,9 @@
   .pleca span:nth-child(2){right:66px}
 
   /* KPIs */
-  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:-24px 0 22px}
+  /* Las tarjetas montan sobre la cabecera a proposito. Sin position/z-index las
+     tapa el rojo: header esta posicionado y se pinta despues que un bloque normal. */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:-24px 0 22px;position:relative;z-index:1}
   .kpi{background:var(--panel);border-radius:10px;padding:16px 16px 14px;box-shadow:0 6px 18px rgba(94,84,70,.10);border-top:4px solid var(--rojo)}
   .kpi .lab{font-size:.7rem;color:var(--gris-txt2);font-weight:600;text-transform:none}
   .kpi .val{font-size:1.55rem;font-weight:800;margin-top:6px;line-height:1;color:var(--rojo)}
