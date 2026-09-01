@@ -42,13 +42,29 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 - Armadores: top 10, etiquetas truncadas a 26 caracteres.
 
 ## Identidad visual PRODUCE (Manual de Identidad) — obligatoria
-- Color principal: **rojo `#B72727`**. Rampa de rojos: `#E09494`, `#C64646`, `#B72727`, `#9B1C1C`, `#891313`.
+- Color principal: **rojo `#B72727`**. Manda en cabecera, pestañas y el KPI de total.
 - Grises secundarios: texto `#5E5446`, `#ABA290`; fondos `#E3E2D8`, `#E0DBD7`.
-- **Sin verde.** La paleta de PRODUCE es rojo + grises. No introducir verde salvo que se pida explícitamente como semáforo funcional.
-- Los colores existen dos veces: como variables CSS en `:root` y como constantes JS (`ROJO`, `ROJO_MED`, …) para Chart.js. Al cambiar la paleta hay que tocar ambos.
 - Tipografía **Montserrat** en todo (títulos Bold, cuerpo Regular).
 - Las barras siempre muestran su valor (data labels).
 - Cabecera con lockup **PRODUCE / Ministerio de la Producción** en blanco sobre rojo y el recurso gráfico de diagonales (pleca).
+
+## Paleta de datos (decidida el 1 de septiembre de 2026)
+El tablero era rojo monocromo y se veía plano. Ahora los gráficos usan acentos, igual que el
+dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráficos es información.**
+- Acentos: teal `#0891B2`, ámbar `#D97706`, verde `#047857`, violeta `#6D28D9`, pizarra `#475569`.
+- Orden categórico fijo: `PAL = [ROJO, TEAL, AMBAR, VERDE, VIOLETA]`. **El orden es la garantía de
+  daltonismo** (contiguos separados bajo protanopia/deuteranopia, ≥3:1 sobre panel blanco). No
+  reordenar ni cambiar los hex sin volver a validar la paleta.
+- Cada color hace un solo trabajo: `COLOR_ESTADO` es escala de estado (vigente→anulado, el color dice
+  gravedad); `RAMPA_ESLORA` es una sola tinta de claro a oscuro porque los tramos van en orden;
+  `colorCat()` reparte identidad. Las categorías sin información van siempre a los grises (`GRISES`).
+- **Una serie = un color.** Los gráficos de barras de serie única (régimen, aparejo, armador,
+  capacidad) llevan un solo tono cada uno, no un arcoíris por barra — la longitud ya codifica el
+  valor. Régimen y capacidad-por-régimen comparten teal por ser la misma dimensión.
+- Los KPIs toman el color de lo que miden, el mismo que usa su gráfico.
+- Los colores existen dos veces: variables CSS en `:root` y constantes JS para Chart.js. Tocar ambos.
+- `tintaSobre()` decide blanco o tinta oscura en las etiquetas dentro de la dona según el relleno; no
+  poner blanco fijo. Las porciones bajo 3.5% no llevan etiqueta (no cabe, la lee el tooltip).
 
 ## Estructura del tablero
 - Pestañas: **Panorama · Evolución · Registro**. **No hay mapa** (decisión tomada; no agregar uno).
