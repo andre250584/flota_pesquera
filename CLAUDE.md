@@ -1,0 +1,58 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+# Dashboard Flota Pesquera — DGPCHDI (PRODUCE)
+
+Tablero web de una sola página del registro de embarcaciones pesqueras con permiso de pesca.
+Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
+
+## Archivo y arquitectura
+- Todo vive en un **único archivo**: `index.html` (HTML + CSS + JS en línea). No hay build, ni framework, ni backend, ni tests, ni gestor de paquetes.
+- Librerías por CDN (cdnjs): PapaParse 5.4.1, Chart.js 4.4.1 y chartjs-plugin-datalabels 2.2.0. Montserrat por Google Fonts.
+- Los datos se leen **en vivo** con `fetch()` y se procesan con PapaParse; todos los KPIs y gráficos se calculan en JavaScript a partir de las filas. **Nada de datos quemados/hardcodeados.**
+
+## Comandos
+- No hay build/lint/test. Editar el HTML es todo el ciclo de desarrollo.
+- Previsualizar: `python3 -m http.server 8080` y abrir `http://localhost:8080/`. Abrirlo con `file://` no sirve.
+- El archivo **debe llamarse `index.html`**: es lo que GitHub Pages sirve en la raíz del sitio. No lo renombres.
+- Desplegar: `git push` a `main` en `andre250584/flota_pesquera` republica solo, vía `.github/workflows/pages.yml`. Sitio: https://andre250584.github.io/flota_pesquera/
+- Probar siempre en la URL `*.github.io`, no en preview local.
+
+## Fuente de datos
+- CSV publicado de Google Sheets (hoja `Matriz`), en la constante `URL_MATRIZ` al inicio del `<script>`.
+- Para cambiar la fuente o sumar la hoja de historial (`Crudo`), edita esa constante / agrega otra; no dupliques la lógica de fetch.
+- La columna de embarcación es `MATRICULA`; una fila = una embarcación. Las filas sin `MATRICULA` se descartan al parsear.
+- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`. Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
+
+## Flujo de ejecución
+1. `cargar()` — se llama al final del script y desde el botón «↻ Actualizar». Añade `?t=Date.now()` al URL y usa `cache:'no-store'` para evitar el CSV cacheado; llama a `destroyAll()` antes de recargar.
+2. PapaParse con `header:true` → `DATA` (array global de filas).
+3. `render()` → `kpis()` + `build('panorama')`.
+4. Los gráficos se construyen **perezosamente por pestaña**: `build(v)` corta si `BUILT[v]`, y cada instancia de Chart.js se guarda en el registro `CHARTS` para poder destruirla en la recarga.
+- Para agregar un gráfico: canvas nuevo en la vista + una rama dentro de `build()` usando los helpers `bars(id,labels,data,color,horizontal)` o `donut(id,labels,data,colors)`, que ya traen la paleta, los data labels y el formato es-PE.
+- Helpers de agregación reutilizables: `conteo(campo, mapfn)`, `ordenar(obj, topN)`, `num()` (limpia comas y devuelve `null` si no es número), `fmt()` (miles es-PE), `shorten()` (abrevia los nombres largos de `REGIMEN` para las etiquetas).
+
+## Reglas de negocio ya implementadas (no las rompas)
+- `POT_MAX = 20000`: potencias por encima (o ≤ 0) se tratan como error de dato y se excluyen del total de HP.
+- Estado del permiso: todas las variantes de "SUSPENDIDO …" se agrupan como `SUSPENDIDO` (`estadoPermiso()`); el orden fijo en el dona es VIGENTE · CANCELADO · SUSPENDIDO · ANULADO.
+- Fecha: `FECHA RESOLUCION` se parsea en formato `M/D/AAAA` y `AAAA-MM-DD` (`parseAnio()`); la evolución solo cuenta años entre 1990 y el año actual.
+- Segmentos de eslora: <10 / 10-15 / 15-22.9 / 23-32.5 / >32.5 m; se ignoran esloras nulas o ≤ 0.
+- `APAREJO` puede traer varios valores separados por `;`: solo se usa el primero (aparejo principal), top 8.
+- Armadores: top 10, etiquetas truncadas a 26 caracteres.
+
+## Identidad visual PRODUCE (Manual de Identidad) — obligatoria
+- Color principal: **rojo `#B72727`**. Rampa de rojos: `#E09494`, `#C64646`, `#B72727`, `#9B1C1C`, `#891313`.
+- Grises secundarios: texto `#5E5446`, `#ABA290`; fondos `#E3E2D8`, `#E0DBD7`.
+- **Sin verde.** La paleta de PRODUCE es rojo + grises. No introducir verde salvo que se pida explícitamente como semáforo funcional.
+- Los colores existen dos veces: como variables CSS en `:root` y como constantes JS (`ROJO`, `ROJO_MED`, …) para Chart.js. Al cambiar la paleta hay que tocar ambos.
+- Tipografía **Montserrat** en todo (títulos Bold, cuerpo Regular).
+- Las barras siempre muestran su valor (data labels).
+- Cabecera con lockup **PRODUCE / Ministerio de la Producción** en blanco sobre rojo y el recurso gráfico de diagonales (pleca).
+
+## Estructura del tablero
+- Pestañas: **Panorama · Evolución · Registro**. **No hay mapa** (decisión tomada; no agregar uno).
+
+## Trampa conocida (no es un bug que arreglar)
+- En algunos entornos de previsualización local, el `fetch` al CSV falla por **CORS**. El código ya detecta ese caso y muestra un mensaje claro en `#errbox`.
+- Se resuelve solo al servir desde un **origen https real** (GitHub Pages). No cambies el mecanismo de fetch para "arreglar" esto.

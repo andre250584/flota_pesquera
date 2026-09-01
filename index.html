@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flota Pesquera — PRODUCE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+  :root{
+    --rojo:#B72727; --rojo-med:#C64646; --rojo-cl:#E09494; --rojo-osc:#891313; --rojo-osc2:#9B1C1C;
+    --gris-txt:#5E5446; --gris-txt2:#ABA290; --fondo1:#E3E2D8; --fondo2:#E0DBD7;
+    --fondo:#F1EFE8; --panel:#ffffff; --linea:#e4e1d7;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Montserrat","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;background:var(--fondo);color:var(--gris-txt);line-height:1.45}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 18px 48px}
+
+  /* Cabecera institucional */
+  header{position:relative;overflow:hidden;background:linear-gradient(100deg,var(--rojo-osc2),var(--rojo) 60%);color:#fff;padding:20px 0}
+  .head-in{max-width:1180px;margin:0 auto;padding:0 18px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;position:relative;z-index:2}
+  .brand{display:flex;align-items:center;gap:18px}
+  .produce-logo{display:flex;flex-direction:column;line-height:1}
+  .pl-mark{font-weight:800;font-size:1.7rem;letter-spacing:.5px;color:#fff}
+  .pl-desc{font-weight:400;font-size:.66rem;letter-spacing:.2px;color:#fff;margin-top:2px}
+  .divider{width:1px;height:42px;background:rgba(255,255,255,.45)}
+  .dash-title h1{font-size:1.18rem;font-weight:700;letter-spacing:.2px}
+  .dash-title .sub{font-size:.76rem;font-weight:300;opacity:.92;margin-top:3px}
+  .meta{margin-left:auto;font-size:.72rem;font-weight:300;text-align:right;opacity:.95}
+  .meta b{display:block;font-size:.92rem;font-weight:600;margin-top:2px}
+  .btn-reload{margin-top:7px;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.45);color:#fff;font-family:inherit;font-size:.7rem;font-weight:500;padding:4px 11px;border-radius:6px;cursor:pointer}
+  .btn-reload:hover{background:rgba(255,255,255,.28)}
+  /* pleca (recurso gráfico: diagonales) */
+  .pleca{position:absolute;top:0;right:0;height:100%;width:120px;z-index:1;opacity:.14}
+  .pleca span{position:absolute;top:-20%;width:22px;height:150%;background:#fff;transform:skewX(-20deg)}
+  .pleca span:nth-child(1){right:34px}
+  .pleca span:nth-child(2){right:66px}
+
+  /* KPIs */
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:-24px 0 22px}
+  .kpi{background:var(--panel);border-radius:10px;padding:16px 16px 14px;box-shadow:0 6px 18px rgba(94,84,70,.10);border-top:4px solid var(--rojo)}
+  .kpi.alt{border-top-color:var(--rojo-osc)}
+  .kpi .lab{font-size:.7rem;color:var(--gris-txt2);font-weight:600;text-transform:none}
+  .kpi .val{font-size:1.55rem;font-weight:800;margin-top:6px;line-height:1;color:var(--rojo)}
+  .kpi.alt .val{color:var(--rojo-osc)}
+  .kpi .foot{font-size:.71rem;color:var(--gris-txt);margin-top:6px;font-weight:400}
+  .kpi .foot b{color:var(--rojo);font-weight:700}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;border-bottom:2px solid var(--linea);margin-bottom:20px;flex-wrap:wrap}
+  .tab{padding:10px 18px;font-family:inherit;font-size:.88rem;font-weight:600;color:var(--gris-txt2);cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;margin-bottom:-2px}
+  .tab.on{color:var(--rojo);border-bottom-color:var(--rojo)}
+
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1.15fr 1fr 1fr}
+  .card{background:var(--panel);border-radius:10px;padding:16px 18px 12px;box-shadow:0 4px 14px rgba(94,84,70,.07)}
+  .card h3{font-size:.9rem;font-weight:700;margin-bottom:2px;color:var(--gris-txt)}
+  .card .cap{font-size:.73rem;color:var(--gris-txt2);margin-bottom:10px;font-weight:400}
+  .chartbox{position:relative;height:230px}
+  .chartbox.tall{height:320px}
+  .view{display:none}
+  .view.on{display:block}
+  .foot-src{margin-top:24px;font-size:.71rem;color:var(--gris-txt2);text-align:center;font-weight:400}
+
+  #loader{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:80px 20px;gap:14px;color:var(--gris-txt2)}
+  .spin{width:38px;height:38px;border:4px solid var(--linea);border-top-color:var(--rojo);border-radius:50%;animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  #errbox{display:none;background:#fbeceb;border:1px solid #e6b3b0;color:var(--rojo-osc);border-radius:10px;padding:16px;margin:20px 0;font-size:.85rem;line-height:1.5}
+  #app{display:none}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.g2,.g3{grid-template-columns:1fr}.meta{margin-left:0;text-align:left}.divider{display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="pleca"><span></span><span></span></span>
+  <div class="head-in">
+    <div class="brand">
+      <div class="produce-logo">
+        <span class="pl-mark">PRODUCE</span>
+        <span class="pl-desc">Ministerio de la Producción</span>
+      </div>
+      <div class="divider"></div>
+      <div class="dash-title">
+        <h1>Flota Pesquera</h1>
+        <div class="sub">Registro de embarcaciones con permiso de pesca · DGPCHDI</div>
+      </div>
+    </div>
+    <div class="meta">
+      Fuente: Matriz de flota
+      <b id="m-total">—</b>
+      <button class="btn-reload" onclick="cargar()">↻ Actualizar</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div id="loader">
+    <div class="spin"></div>
+    <div>Cargando datos de la flota…</div>
+  </div>
+
+  <div id="errbox"></div>
+
+  <div id="app">
+    <section class="kpis">
+      <div class="kpi"><div class="lab">Embarcaciones</div><div class="val" id="k-total">—</div><div class="foot" id="k-armadores">—</div></div>
+      <div class="kpi"><div class="lab">Permiso vigente</div><div class="val" id="k-vig">—</div><div class="foot" id="k-vigpct">—</div></div>
+      <div class="kpi"><div class="lab">Capacidad de bodega</div><div class="val" id="k-cap">—</div><div class="foot">m³ acumulados</div></div>
+      <div class="kpi"><div class="lab">Potencia instalada</div><div class="val" id="k-pot">—</div><div class="foot">HP (motores)</div></div>
+      <div class="kpi alt"><div class="lab">No vigente</div><div class="val" id="k-novig">—</div><div class="foot">cancel. / susp. / anul.</div></div>
+    </section>
+
+    <div class="tabs">
+      <button class="tab on" data-v="panorama">Panorama</button>
+      <button class="tab" data-v="evolucion">Evolución</button>
+      <button class="tab" data-v="registro">Registro</button>
+    </div>
+
+    <div class="view on" id="panorama">
+      <div class="grid g3" style="margin-bottom:16px">
+        <div class="card"><h3>Estado del permiso de pesca</h3><div class="cap">Distribución por vigencia</div><div class="chartbox"><canvas id="c_estado"></canvas></div></div>
+        <div class="card"><h3>Material de casco</h3><div class="cap">Composición estructural</div><div class="chartbox"><canvas id="c_casco"></canvas></div></div>
+        <div class="card"><h3>Segmento por eslora</h3><div class="cap">Tamaño de embarcación (m)</div><div class="chartbox"><canvas id="c_seg"></canvas></div></div>
+      </div>
+      <div class="grid g2">
+        <div class="card"><h3>Embarcaciones por régimen</h3><div class="cap">Marco legal del permiso</div><div class="chartbox tall"><canvas id="c_reg"></canvas></div></div>
+        <div class="card"><h3>Arte de pesca (aparejo principal)</h3><div class="cap">Método de captura predominante</div><div class="chartbox tall"><canvas id="c_apar"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="view" id="evolucion">
+      <div class="card"><h3>Resoluciones de permiso por año</h3><div class="cap">Altas registradas según fecha de resolución</div><div class="chartbox tall" style="height:360px"><canvas id="c_evol"></canvas></div></div>
+    </div>
+
+    <div class="view" id="registro">
+      <div class="grid g2">
+        <div class="card"><h3>Concentración por armador</h3><div class="cap">N.° de embarcaciones · top 10</div><div class="chartbox tall" style="height:360px"><canvas id="c_arm"></canvas></div></div>
+        <div class="card"><h3>Capacidad de bodega por régimen</h3><div class="cap">m³ acumulados</div><div class="chartbox tall" style="height:360px"><canvas id="c_capreg"></canvas></div></div>
+      </div>
+    </div>
+
+    <div class="foot-src">Ministerio de la Producción · Datos en vivo desde Google Sheets (CSV publicado)</div>
+  </div>
+</div>
+
+<script>
+// ====== CONFIG ======
+const URL_MATRIZ = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSStG4sjc0ep7mkK5-n2gsGMTKkWxVXjEtsyze0Z1Yx3Hn5P1lzNVHlsQdhMvMp6nFR9jrwYiziNSgb/pub?gid=1147773874&single=true&output=csv";
+const POT_MAX = 20000;
+
+// ====== PALETA PRODUCE (manual de identidad) ======
+const ROJO='#B72727', ROJO_MED='#C64646', ROJO_CL='#E09494', ROJO_OSC='#891313', ROJO_OSC2='#9B1C1C', GRIS='#ABA290', TXT='#5E5446';
+
+// ====== SETUP ======
+Chart.register(ChartDataLabels);
+Chart.defaults.font.family='Montserrat, "Segoe UI", system-ui, sans-serif';
+Chart.defaults.font.size=11;
+Chart.defaults.color=TXT;
+Chart.defaults.borderColor='#e4e1d7';
+Chart.defaults.plugins.legend.labels.boxWidth=12;
+const fmt = n => Math.round(n).toLocaleString('es-PE');
+const num = v => { const x = parseFloat(String(v).replace(/,/g,'').trim()); return isNaN(x)?null:x; };
+let CHARTS={}, DATA=[], BUILT={};
+
+function destroyAll(){ Object.values(CHARTS).forEach(c=>c&&c.destroy()); CHARTS={}; BUILT={}; }
+
+// ====== CARGA (fetch -> texto -> PapaParse) ======
+async function cargar(){
+  document.getElementById('loader').style.display='flex';
+  document.getElementById('app').style.display='none';
+  document.getElementById('errbox').style.display='none';
+  destroyAll();
+  const url = URL_MATRIZ + (URL_MATRIZ.includes('?')?'&':'?') + 't=' + Date.now();
+  try {
+    const resp = await fetch(url, {cache:'no-store', redirect:'follow'});
+    if(!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
+    const text = await resp.text();
+    const res = Papa.parse(text, {header:true, skipEmptyLines:true});
+    DATA = res.data.filter(r => (r['MATRICULA']||'').trim() !== '');
+    if(!DATA.length){ mostrarError('El CSV se descargó pero no trae filas. Verifica que la pestaña publicada sea la Matriz.'); return; }
+    render();
+  } catch(err){
+    let base = err.message || String(err);
+    let extra = '';
+    if(/Failed to fetch|NetworkError|CORS|load failed/i.test(base)){
+      extra = '<br><br>El CSV publicado es correcto, pero este entorno de previsualización está bloqueando la descarga externa (CORS). '
+            + 'Al abrir el dashboard desde GitHub Pages —u otro origen https real— cargará sin problema.';
+    }
+    mostrarError(base + extra);
+  }
+}
+function mostrarError(msg){
+  document.getElementById('loader').style.display='none';
+  const e=document.getElementById('errbox'); e.style.display='block';
+  e.innerHTML='<b>Error al cargar</b><br>'+msg;
+}
+
+// ====== AGREGACIONES ======
+function conteo(campo, mapfn){
+  const m={};
+  DATA.forEach(r=>{ let k=(r[campo]||'').trim(); if(mapfn)k=mapfn(k); if(k==='')k='(sin dato)'; m[k]=(m[k]||0)+1; });
+  return m;
+}
+function ordenar(obj, topN){
+  let e=Object.entries(obj).sort((a,b)=>b[1]-a[1]);
+  if(topN)e=e.slice(0,topN);
+  return {labels:e.map(x=>x[0]), vals:e.map(x=>x[1])};
+}
+function estadoPermiso(v){ v=v.toUpperCase(); if(v.startsWith('SUSPENDIDO'))return 'SUSPENDIDO'; return v; }
+function segmentoEslora(){
+  const bins=[0,10,15,22.9,32.5,999], lab=['<10 m','10-15 m','15-22.9 m','23-32.5 m','>32.5 m'], c=[0,0,0,0,0];
+  DATA.forEach(r=>{ const e=num(r['ESLORA']); if(e===null||e<=0)return;
+    for(let i=0;i<5;i++){ if(e>bins[i]&&e<=bins[i+1]){c[i]++;break;} } });
+  return {labels:lab, vals:c};
+}
+function evolucion(){
+  const m={};
+  DATA.forEach(r=>{ const y=parseAnio((r['FECHA RESOLUCION']||'').trim());
+    if(y&&y>=1990&&y<=new Date().getFullYear()) m[y]=(m[y]||0)+1; });
+  const yrs=Object.keys(m).map(Number).sort((a,b)=>a-b);
+  return {labels:yrs, vals:yrs.map(y=>m[y])};
+}
+function parseAnio(f){
+  if(!f)return null;
+  let mt=f.match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); if(mt)return +mt[3];
+  mt=f.match(/(\d{4})-(\d{1,2})-(\d{1,2})/); if(mt)return +mt[1];
+  return null;
+}
+function capPorRegimen(){
+  const m={};
+  DATA.forEach(r=>{ const k=(r['REGIMEN']||'(sin dato)').trim(); const c=num(r['CAPBOD_M3'])||0; m[k]=(m[k]||0)+c; });
+  return ordenar(m);
+}
+function shorten(s){
+  return s.replace('DECRETO LEY N°','DL').replace('LEY N°','Ley').replace(' (ANCHOVETA)',' (Anch)')
+          .replace(' - ARTESANAL','-Art').replace('MENOR ESCALA','M. Escala').replace('-PRODUCE','');
+}
+
+// ====== KPIs ======
+function kpis(){
+  const total=DATA.length;
+  const estados=conteo('PERMISO PESCA', estadoPermiso);
+  const vig=estados['VIGENTE']||0;
+  const capTot=DATA.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0);
+  const potTot=DATA.reduce((s,r)=>{const p=num(r['POTENCIA MOTOR']); return s+((p&&p>0&&p<POT_MAX)?p:0);},0);
+  const armadores=new Set(DATA.map(r=>(r['ARMADOR']||'').trim()).filter(Boolean)).size;
+  document.getElementById('k-total').textContent=fmt(total);
+  document.getElementById('m-total').textContent=fmt(total)+' embarcaciones';
+  document.getElementById('k-armadores').textContent=fmt(armadores)+' armadores';
+  document.getElementById('k-vig').textContent=fmt(vig);
+  document.getElementById('k-vigpct').innerHTML='<b>'+Math.round(vig/total*100)+'%</b> de la flota';
+  document.getElementById('k-cap').textContent=fmt(capTot);
+  document.getElementById('k-pot').textContent=fmt(potTot);
+  document.getElementById('k-novig').textContent=fmt(total-vig);
+}
+
+// ====== CHART HELPERS ======
+function bars(id,labels,data,color,horizontal){
+  CHARTS[id]=new Chart(document.getElementById(id),{type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:color,borderRadius:4,maxBarThickness:40}]},
+    options:{indexAxis:horizontal?'y':'x',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},
+        datalabels:{color:TXT,anchor:'end',align:horizontal?'right':'top',font:{weight:'700'},formatter:v=>fmt(v),clamp:true}},
+      scales:{x:{grid:{display:!horizontal},ticks:{autoSkip:false}},y:{grid:{display:horizontal},beginAtZero:true,ticks:{autoSkip:false}}},
+      layout:{padding:{right:horizontal?40:6,top:14}}}});
+}
+function donut(id,labels,data,colors){
+  CHARTS[id]=new Chart(document.getElementById(id),{type:'doughnut',
+    data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#fff',borderWidth:2}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'55%',
+      plugins:{legend:{position:'bottom'},datalabels:{color:'#fff',font:{weight:'700',size:11},formatter:v=>v>0?fmt(v):''}}}});
+}
+
+// ====== RENDER POR PESTAÑA ======
+function build(v){
+  if(BUILT[v])return; BUILT[v]=true;
+  if(v==='panorama'){
+    const est=conteo('PERMISO PESCA', estadoPermiso);
+    const orden=['VIGENTE','CANCELADO','SUSPENDIDO','ANULADO'];
+    const el=orden.filter(k=>est[k]), ev=el.map(k=>est[k]);
+    donut('c_estado',el,ev,[ROJO,ROJO_MED,ROJO_CL,ROJO_OSC]);
+    const cas=ordenar(conteo('CASCO'));
+    donut('c_casco',cas.labels,cas.vals,[ROJO_MED,ROJO,ROJO_CL,GRIS,ROJO_OSC]);
+    const seg=segmentoEslora(); bars('c_seg',seg.labels,seg.vals,ROJO,false);
+    const reg=ordenar(conteo('REGIMEN')); bars('c_reg',reg.labels.map(shorten),reg.vals,ROJO,true);
+    const ap=ordenar(conteo('APAREJO',v=>v.split(';')[0].trim()),8); bars('c_apar',ap.labels,ap.vals,ROJO_MED,true);
+  }
+  if(v==='evolucion'){
+    const e=evolucion();
+    CHARTS['c_evol']=new Chart(document.getElementById('c_evol'),{type:'line',
+      data:{labels:e.labels,datasets:[{data:e.vals,borderColor:ROJO,backgroundColor:'rgba(183,39,39,.10)',fill:true,tension:.3,pointRadius:2,pointBackgroundColor:ROJO_OSC,borderWidth:2}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:false}},scales:{y:{beginAtZero:true}}}});
+  }
+  if(v==='registro'){
+    const arm=ordenar(conteo('ARMADOR'),10);
+    bars('c_arm',arm.labels.map(s=>s.length>26?s.slice(0,24)+'…':s),arm.vals,ROJO,true);
+    const cr=capPorRegimen(); bars('c_capreg',cr.labels.map(shorten),cr.vals,ROJO_MED,true);
+  }
+}
+
+function render(){
+  document.getElementById('loader').style.display='none';
+  document.getElementById('app').style.display='block';
+  kpis();
+  build('panorama');
+}
+
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('.view').forEach(x=>x.classList.remove('on'));
+  t.classList.add('on');
+  const v=t.dataset.v; document.getElementById(v).classList.add('on'); build(v);
+}));
+
+cargar();
+</script>
+</body>
+</html>
