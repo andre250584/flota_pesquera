@@ -508,7 +508,8 @@ function build(v){
   }
   if(v==='reportes'){
     const me=VISTA.filter(esMenorEscala);
-    const filas=[['Anchoveta (Menor Escala)','ANCH'],['Bacalao (Menor Escala)','BAC']];
+    const filas=[['Anchoveta (Menor Escala)','ANCH'],['Bacalao (Menor Escala)','BAC'],
+                 ['Anguila (Menor Escala)','ANGL'],['Merluza (Menor Escala)','MERLZ']];
     document.getElementById('t-especies').innerHTML = filas.map(([lab,cod])=>
       '<tr><td>'+lab+'<span class="sub">'+cod+' en ESPECIE CHD VIGENTES</span></td>'
       +'<td class="num">'+fmt(conEspecie(me,cod))+'</td></tr>').join('');
