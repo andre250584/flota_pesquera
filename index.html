@@ -143,18 +143,17 @@
         <div class="card"><h3>Embarcaciones por régimen</h3><div class="cap">Marco legal del permiso</div><div class="chartbox tall"><canvas id="c_reg"></canvas></div></div>
         <div class="card"><h3>Arte de pesca (aparejo principal)</h3><div class="cap">Método de captura predominante</div><div class="chartbox tall"><canvas id="c_apar"></canvas></div></div>
       </div>
+      <div class="grid g2" style="margin-top:16px">
+        <div class="card"><h3>Concentración por armador</h3><div class="cap">N.° de embarcaciones · top 10</div><div class="chartbox tall" style="height:360px"><canvas id="c_arm"></canvas></div></div>
+        <div class="card"><h3>Capacidad de bodega por régimen</h3><div class="cap">m³ acumulados</div><div class="chartbox tall" style="height:360px"><canvas id="c_capreg"></canvas></div></div>
+      </div>
     </div>
 
     <div class="view" id="evolucion">
       <div class="card"><h3>Resoluciones de permiso por año</h3><div class="cap">Altas registradas según fecha de resolución</div><div class="chartbox tall" style="height:360px"><canvas id="c_evol"></canvas></div></div>
     </div>
 
-    <div class="view" id="registro">
-      <div class="grid g2">
-        <div class="card"><h3>Concentración por armador</h3><div class="cap">N.° de embarcaciones · top 10</div><div class="chartbox tall" style="height:360px"><canvas id="c_arm"></canvas></div></div>
-        <div class="card"><h3>Capacidad de bodega por régimen</h3><div class="cap">m³ acumulados</div><div class="chartbox tall" style="height:360px"><canvas id="c_capreg"></canvas></div></div>
-      </div>
-    </div>
+    <div class="view" id="registro"></div>
 
     <div class="foot-src">Ministerio de la Producción · Datos en vivo desde Google Sheets (CSV publicado)</div>
   </div>
@@ -334,18 +333,16 @@ function build(v){
     const seg=segmentoEslora(); bars('c_seg',seg.labels,seg.vals,RAMPA_ESLORA,false);
     const reg=ordenar(conteo('REGIMEN')); bars('c_reg',reg.labels.map(shorten),reg.vals,TEAL,true);
     const ap=ordenar(conteo('APAREJO',v=>v.split(';')[0].trim()),8); bars('c_apar',ap.labels,ap.vals,AMBAR,true);
+    const arm=ordenar(conteo('ARMADOR'),10);
+    bars('c_arm',arm.labels.map(s=>s.length>26?s.slice(0,24)+'…':s),arm.vals,VIOLETA,true);
+    // Mismo teal que "Embarcaciones por regimen": es la misma dimension vista con otra medida.
+    const cr=capPorRegimen(); bars('c_capreg',cr.labels.map(shorten),cr.vals,TEAL,true);
   }
   if(v==='evolucion'){
     const e=evolucion();
     CHARTS['c_evol']=new Chart(document.getElementById('c_evol'),{type:'line',
       data:{labels:e.labels,datasets:[{data:e.vals,borderColor:ROJO,backgroundColor:'rgba(183,39,39,.10)',fill:true,tension:.3,pointRadius:2,pointBackgroundColor:ROJO_OSC,borderWidth:2}]},
       options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},datalabels:{display:false}},scales:{y:{beginAtZero:true}}}});
-  }
-  if(v==='registro'){
-    const arm=ordenar(conteo('ARMADOR'),10);
-    bars('c_arm',arm.labels.map(s=>s.length>26?s.slice(0,24)+'…':s),arm.vals,VIOLETA,true);
-    // Mismo teal que "Embarcaciones por regimen": es la misma dimension vista con otra medida.
-    const cr=capPorRegimen(); bars('c_capreg',cr.labels.map(shorten),cr.vals,TEAL,true);
   }
 }
 
