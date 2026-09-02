@@ -59,8 +59,8 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 - El check **«Excluir INC. DEF»** saca del reporte las embarcaciones con `INC. DEF = SI` (187 hoy, y
   todas suspendidas: al marcarlo el defecto pasa de 1,511 a 1,324 sin tocar las vigentes). Va **fuera**
   de `FILTROS` — es un sí/no, no una lista de categorías — como el booleano `EXCL_INC` más el
-  predicado `esIncDef()`; se combina con los otros filtros en `aplicarFiltro()`. Arranca apagado y
-  «Restablecer» lo apaga.
+  predicado `esIncDef()`; se combina con los otros filtros en `aplicarFiltro()`. Arranca marcado y
+  «Restablecer» lo deja activado.
 - Consecuencia esperada y aceptada: con un filtro puesto, «Embarcaciones por régimen» y «Capacidad de
   bodega por régimen» muestran solo las barras seleccionadas. No es un defecto.
 

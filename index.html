@@ -166,7 +166,7 @@
         <div id="e-panel" class="filtro-panel" hidden></div>
       </div>
       <label class="filtro-check" id="x-lab" title="Quita del reporte las embarcaciones con INC. DEF = SI">
-        <input type="checkbox" id="x-inc"> Excluir INC. DEF <span class="n" id="x-n"></span>
+        <input type="checkbox" id="x-inc" checked> Excluir INC. DEF <span class="n" id="x-n"></span>
       </label>
       <span class="filtro-res" id="f-res">—</span>
       <button id="f-reset" class="filtro-limpiar" type="button" hidden>Restablecer</button>
@@ -306,8 +306,8 @@ const FILTROS = {
          def: ['VIGENTE','SUSPENDIDO'], sel: new Set(['VIGENTE','SUSPENDIDO']) }
 };
 // Exclusion aparte de FILTROS: no es una lista de categorias sino un si/no,
-// asi que no entra en el mecanismo de casillas. Apagada por defecto.
-let EXCL_INC = false;
+// asi que no entra en el mecanismo de casillas. Marcada por defecto.
+let EXCL_INC = true;
 const esIncDef = r => (r['INC. DEF']||'').trim().toUpperCase()==='SI';
 const etiquetaDe = (f,k) => k==='' ? '(sin dato)' : f.etiqueta(k);
 const activos = () => Object.values(FILTROS);
@@ -372,7 +372,7 @@ function pintarFiltros(){
   document.getElementById('f-res').textContent=fmt(VISTA.length)+' de '+fmt(DATA.length)+' embarcaciones';
   // El boton devuelve la pagina a como carga, no a "sin filtros": el estado
   // tiene un defecto propio y perderlo seria un viaje de ida.
-  document.getElementById('f-reset').hidden = activos().every(esDefecto) && !EXCL_INC;
+  document.getElementById('f-reset').hidden = activos().every(esDefecto) && EXCL_INC;
 }
 // Solo un panel abierto a la vez.
 function abrirPanel(pre){
@@ -520,7 +520,7 @@ document.getElementById('x-inc').addEventListener('change', e=>{
 });
 document.getElementById('f-reset').addEventListener('click', ()=>{
   activos().forEach(f=>{ f.sel=new Set(f.def); });
-  EXCL_INC=false; document.getElementById('x-inc').checked=false;
+  EXCL_INC=true; document.getElementById('x-inc').checked=true;
   poblarPaneles();   // rearma las casillas ya marcadas segun el defecto
   refrescar();
 });
