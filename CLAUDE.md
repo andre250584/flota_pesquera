@@ -23,7 +23,7 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 - CSV publicado de Google Sheets (hoja `Matriz`), en la constante `URL_MATRIZ` al inicio del `<script>`.
 - Para cambiar la fuente o sumar la hoja de historial (`Crudo`), edita esa constante / agrega otra; no dupliques la lógica de fetch.
 - La columna de embarcación es `MATRICULA`; una fila = una embarcación. Las filas sin `MATRICULA` se descartan al parsear.
-- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
+- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado), `ESPECIE CHD VIGENTES` (columna Z). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
 
 ## Flujo de ejecución
 1. `cargar()` — se llama al final del script y desde el botón «↻ Actualizar». Añade `?t=Date.now()` al URL y usa `cache:'no-store'` para evitar el CSV cacheado; llama a `destroyAll()` antes de recargar.
@@ -99,9 +99,22 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   poner blanco fijo. Las porciones bajo 3.5% no llevan etiqueta (no cabe, la lee el tooltip).
 
 ## Estructura del tablero
-- Pestañas: **Panorama · Evolución · Registro**. **No hay mapa** (decisión tomada; no agregar uno).
-- Panorama concentra los ocho gráficos; Evolución tiene la serie por año. **Registro quedó vacía** al
-  mover sus dos tarjetas a Panorama: es un pendiente, no un descuido que haya que "arreglar" a ciegas.
+- Pestañas: **Panorama · Evolución · Reportes**. **No hay mapa** (decisión tomada; no agregar uno).
+- Panorama concentra los ocho gráficos; Evolución tiene la serie por año; **Reportes** son cuadros de
+  cifras (tablas `.tabla`, no gráficos), así que su rama de `build()` no toca `CHARTS`.
+
+## Reportes (pestaña)
+- «Menor escala por especie» cuenta embarcaciones de menor escala que llevan una especie entre sus
+  CHD vigentes. Por ahora solo Anchoveta (`ANCH`) y Bacalao (`BAC`); está pensado para crecer con más
+  filas en el mismo arreglo de la rama `build('reportes')`.
+- Menor escala son las **tres** variantes de `REGIMEN` (`MENOR ESCALA`, `... (ANCHOVETA)` y
+  `... - ARTESANAL`), por eso `esMenorEscala()` compara con `includes('MENOR ESCALA')`.
+- `ESPECIE CHD VIGENTES` es una lista separada por `/` (ej. `AB/ANCH/R.H.`). `conEspecie()` usa
+  `includes()` porque ninguno de los 110 códigos de la columna contiene `ANCH` ni `BAC` como
+  subcadena. **Al agregar una especie nueva hay que volver a comprobar eso**, o el conteo se infla en
+  silencio con códigos que apenas la contienen.
+- El cuadro lee `VISTA`: responde a los filtros como el resto del tablero. Con el arranque por defecto
+  (vigentes + suspendidas, sin `INC. DEF`) da 338 y 9; sobre las 2,234 sin filtrar, 352 y 11.
 
 ## Trampa conocida (no es un bug que arreglar)
 - En algunos entornos de previsualización local, el `fetch` al CSV falla por **CORS**. El código ya detecta ese caso y muestra un mensaje claro en `#errbox`.
