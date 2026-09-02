@@ -27,22 +27,48 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 
 ## Flujo de ejecución
 1. `cargar()` — se llama al final del script y desde el botón «↻ Actualizar». Añade `?t=Date.now()` al URL y usa `cache:'no-store'` para evitar el CSV cacheado; llama a `destroyAll()` antes de recargar.
-2. PapaParse con `header:true` → `DATA` (array global de filas).
-3. `render()` → `kpis()` + `build('panorama')`.
-4. Los gráficos se construyen **perezosamente por pestaña**: `build(v)` corta si `BUILT[v]`, y cada instancia de Chart.js se guarda en el registro `CHARTS` para poder destruirla en la recarga.
+2. PapaParse con `header:true` → `DATA` (array global de filas, el CSV crudo).
+3. `poblarPaneles()` arma las casillas de los filtros a partir de `DATA`.
+4. `render()` → `aplicarFiltro()` (→ `VISTA`) + `kpis()` + `build(pestanaActiva())` + `pintarFiltros()`.
+   Construye la pestaña visible, **no `'panorama'` fijo**: al filtrar se puede estar en cualquiera.
+5. Los gráficos se construyen **perezosamente por pestaña**: `build(v)` corta si `BUILT[v]`, y cada instancia de Chart.js se guarda en el registro `CHARTS` para poder destruirla en la recarga.
 - Para agregar un gráfico: canvas nuevo en la vista + una rama dentro de `build()` usando los helpers `bars(id,labels,data,color,horizontal)` o `donut(id,labels,data,colors)`, que ya traen la paleta, los data labels y el formato es-PE.
 - Helpers de agregación reutilizables: `conteo(campo, mapfn)`, `ordenar(obj, topN)`, `num()` (limpia comas y devuelve `null` si no es número), `fmt()` (miles es-PE), `shorten()` (abrevia los nombres largos de `REGIMEN` para las etiquetas).
+- **Las agregaciones leen `VISTA`, nunca `DATA`.** `DATA` es el CSV crudo; `VISTA` son las filas que
+  pasan los filtros. Un gráfico nuevo que lea `DATA` se queda mudo ante los filtros y nadie se entera.
+
+## Filtros
+- Barra entre las tarjetas KPI y las pestañas, con dos desplegables de casillas (selección múltiple):
+  **Régimen de pesca** y **Estado del permiso**. El recorte es global: alcanza los 5 KPIs, el contador
+  de la cabecera y los gráficos de las tres pestañas.
+- Los dos comparten un solo mecanismo declarativo, el objeto `FILTROS`. Cada entrada dice de qué
+  columna sale su valor (`valor`), cómo se etiqueta (`etiqueta`), en qué orden se listan sus casillas
+  (`orden`, o `null` para ordenar por frecuencia), su selección inicial (`def`) y el prefijo de sus
+  ids en el HTML (`pre`). **Para sumar un tercer filtro basta otra entrada aquí más su bloque en el
+  HTML** — no dupliques `poblarPaneles()`, `refrescar()` ni `pintarFiltros()`.
+- **Un conjunto vacío significa "todos", no "nada".** Así no existe el tablero en cero ni la división
+  por cero de `kpis()` (`vig/total`). No lo inviertas.
+- El estado arranca en **VIGENTE + SUSPENDIDO** (la flota operativa), así que el tablero **no abre
+  mostrando las 2,234 embarcaciones** sino 1,511. Compara sobre `estadoPermiso()`, no sobre el valor
+  crudo, o las variantes de "SUSPENDIDO …" quedan fuera de su propia casilla.
+- Las casillas se arman desde `DATA`, **nunca** desde `VISTA`: si salieran de la vista filtrada, las
+  demás opciones desaparecerían al marcar la primera.
+- «Restablecer» devuelve la página a como carga (régimen vacío, estado en su defecto), no a "sin
+  filtros"; se oculta cuando ya está en ese estado. Al recargar sobreviven las marcas cuyo valor siga
+  existiendo en los datos frescos.
+- Consecuencia esperada y aceptada: con un filtro puesto, «Embarcaciones por régimen» y «Capacidad de
+  bodega por régimen» muestran solo las barras seleccionadas. No es un defecto.
 
 ## Reglas de negocio ya implementadas (no las rompas)
 - `POT_MAX = 20000`: potencias por encima (o ≤ 0) se tratan como error de dato y se excluyen del total de HP.
-- Estado del permiso: todas las variantes de "SUSPENDIDO …" se agrupan como `SUSPENDIDO` (`estadoPermiso()`); el orden fijo en el dona es VIGENTE · CANCELADO · SUSPENDIDO · ANULADO.
+- Estado del permiso: todas las variantes de "SUSPENDIDO …" se agrupan como `SUSPENDIDO` (`estadoPermiso()`); el orden fijo en el dona es VIGENTE · SUSPENDIDO · CANCELADO · ANULADO, el mismo que usan las casillas del filtro de estado.
 - Fecha: `FECHA RESOLUCION` se parsea en formato `M/D/AAAA` y `AAAA-MM-DD` (`parseAnio()`); la evolución solo cuenta años entre 1990 y el año actual.
 - Segmentos de eslora: <10 / 10-15 / 15-22.9 / 23-32.5 / >32.5 m; se ignoran esloras nulas o ≤ 0.
 - `APAREJO` puede traer varios valores separados por `;`: solo se usa el primero (aparejo principal), top 8.
 - Armadores: top 10, etiquetas truncadas a 26 caracteres.
 
 ## Identidad visual PRODUCE (Manual de Identidad) — obligatoria
-- Color principal: **rojo `#B72727`**. Manda en cabecera, pestañas y el KPI de total.
+- Color principal: **rojo `#B72727`**. Manda en cabecera, pestañas y los controles de filtro.
 - Grises secundarios: texto `#5E5446`, `#ABA290`; fondos `#E3E2D8`, `#E0DBD7`.
 - Tipografía **Montserrat** en todo (títulos Bold, cuerpo Regular).
 - Las barras siempre muestran su valor (data labels).
@@ -61,13 +87,16 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
 - **Una serie = un color.** Los gráficos de barras de serie única (régimen, aparejo, armador,
   capacidad) llevan un solo tono cada uno, no un arcoíris por barra — la longitud ya codifica el
   valor. Régimen y capacidad-por-régimen comparten teal por ser la misma dimensión.
-- Los KPIs toman el color de lo que miden, el mismo que usa su gráfico.
+- Las cifras de los KPIs van en **negro**; el color de lo que mide cada tarjeta vive en su borde
+  superior (y en el porcentaje de «Permiso vigente»), no en el número.
 - Los colores existen dos veces: variables CSS en `:root` y constantes JS para Chart.js. Tocar ambos.
 - `tintaSobre()` decide blanco o tinta oscura en las etiquetas dentro de la dona según el relleno; no
   poner blanco fijo. Las porciones bajo 3.5% no llevan etiqueta (no cabe, la lee el tooltip).
 
 ## Estructura del tablero
 - Pestañas: **Panorama · Evolución · Registro**. **No hay mapa** (decisión tomada; no agregar uno).
+- Panorama concentra los ocho gráficos; Evolución tiene la serie por año. **Registro quedó vacía** al
+  mover sus dos tarjetas a Panorama: es un pendiente, no un descuido que haya que "arreglar" a ciegas.
 
 ## Trampa conocida (no es un bug que arreglar)
 - En algunos entornos de previsualización local, el `fetch` al CSV falla por **CORS**. El código ya detecta ese caso y muestra un mensaje claro en `#errbox`.
