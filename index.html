@@ -65,6 +65,24 @@
   .tab{padding:10px 18px;font-family:inherit;font-size:.88rem;font-weight:600;color:var(--gris-txt2);cursor:pointer;border:none;background:none;border-bottom:3px solid transparent;margin-bottom:-2px}
   .tab.on{color:var(--rojo);border-bottom-color:var(--rojo)}
 
+  /* Filtro global por regimen. Es cromo de interfaz, no dato: toma el rojo de
+     identidad igual que las pestanas; la paleta de graficos no interviene aqui. */
+  .filtro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+  .filtro-lab{font-size:.72rem;font-weight:600;color:var(--gris-txt2)}
+  .filtro-box{position:relative}
+  .filtro-btn{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--linea);border-radius:7px;padding:7px 11px;font-family:inherit;font-size:.78rem;font-weight:600;color:var(--gris-txt);cursor:pointer;min-width:200px;text-align:left}
+  .filtro-btn:hover{border-color:var(--gris-txt2)}
+  .filtro-btn.activo{border-color:var(--rojo);color:var(--rojo)}
+  .filtro-btn .caret{margin-left:auto;font-size:.68rem;opacity:.7}
+  /* z-index por encima del 1 de .kpis, o las tarjetas tapan el panel abierto. */
+  .filtro-panel{position:absolute;top:100%;left:0;margin-top:6px;z-index:5;background:var(--panel);border:1px solid var(--linea);border-radius:9px;box-shadow:0 8px 22px rgba(94,84,70,.16);padding:8px;min-width:300px;max-height:330px;overflow-y:auto}
+  .filtro-op{display:flex;align-items:center;gap:9px;padding:6px 8px;border-radius:6px;font-size:.78rem;font-weight:500;color:var(--gris-txt);cursor:pointer}
+  .filtro-op:hover{background:var(--fondo)}
+  .filtro-op input{accent-color:var(--rojo);cursor:pointer;flex:none}
+  .filtro-op .n{margin-left:auto;padding-left:14px;font-size:.72rem;font-weight:600;color:var(--gris-txt2)}
+  .filtro-res{font-size:.73rem;color:var(--gris-txt2);font-weight:500}
+  .filtro-limpiar{background:none;border:none;font-family:inherit;font-size:.73rem;font-weight:600;color:var(--rojo);cursor:pointer;text-decoration:underline;padding:0}
+
   .grid{display:grid;gap:16px}
   .g2{grid-template-columns:1fr 1fr}
   .g3{grid-template-columns:1.15fr 1fr 1fr}
@@ -82,7 +100,8 @@
   @keyframes sp{to{transform:rotate(360deg)}}
   #errbox{display:none;background:#fbeceb;border:1px solid #e6b3b0;color:var(--rojo-osc);border-radius:10px;padding:16px;margin:20px 0;font-size:.85rem;line-height:1.5}
   #app{display:none}
-  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.g2,.g3{grid-template-columns:1fr}.meta{margin-left:0;text-align:left}.divider{display:none}}
+  @media(max-width:860px){.kpis{grid-template-columns:repeat(2,1fr)}.g2,.g3{grid-template-columns:1fr}.meta{margin-left:0;text-align:left}.divider{display:none}
+    .filtro-box{flex:1 1 100%}.filtro-btn{width:100%}.filtro-panel{min-width:100%}}
 </style>
 </head>
 <body>
@@ -126,6 +145,18 @@
       <div class="kpi k-pot"><div class="lab">Potencia instalada</div><div class="val" id="k-pot">—</div><div class="foot">HP (motores)</div></div>
       <div class="kpi k-nov"><div class="lab">No vigente</div><div class="val" id="k-novig">—</div><div class="foot">cancel. / susp. / anul.</div></div>
     </section>
+
+    <div class="filtro">
+      <span class="filtro-lab">Régimen de pesca</span>
+      <div class="filtro-box">
+        <button id="f-btn" class="filtro-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <span id="f-txt">Todos los regímenes</span><span class="caret">▾</span>
+        </button>
+        <div id="f-panel" class="filtro-panel" hidden></div>
+      </div>
+      <span class="filtro-res" id="f-res">—</span>
+      <button id="f-limpiar" class="filtro-limpiar" type="button" hidden>Limpiar</button>
+    </div>
 
     <div class="tabs">
       <button class="tab on" data-v="panorama">Panorama</button>
@@ -204,6 +235,9 @@ Chart.defaults.plugins.legend.labels.boxWidth=12;
 const fmt = n => Math.round(n).toLocaleString('es-PE');
 const num = v => { const x = parseFloat(String(v).replace(/,/g,'').trim()); return isNaN(x)?null:x; };
 let CHARTS={}, DATA=[], BUILT={};
+// DATA es el CSV crudo; VISTA es lo que miran KPIs y graficos. FILTRO guarda los
+// valores crudos de REGIMEN marcados.
+let FILTRO=new Set(), VISTA=[];
 
 function destroyAll(){ Object.values(CHARTS).forEach(c=>c&&c.destroy()); CHARTS={}; BUILT={}; }
 
@@ -221,6 +255,7 @@ async function cargar(){
     const res = Papa.parse(text, {header:true, skipEmptyLines:true});
     DATA = res.data.filter(r => (r['MATRICULA']||'').trim() !== '');
     if(!DATA.length){ mostrarError('El CSV se descargó pero no trae filas. Verifica que la pestaña publicada sea la Matriz.'); return; }
+    poblarPanel();
     render();
   } catch(err){
     let base = err.message || String(err);
@@ -238,10 +273,61 @@ function mostrarError(msg){
   e.innerHTML='<b>Error al cargar</b><br>'+msg;
 }
 
+// ====== FILTRO POR REGIMEN ======
+// Un FILTRO vacio significa "todos", no "nada": asi no existe el estado de
+// tablero en cero ni la division por cero de kpis().
+function aplicarFiltro(){
+  VISTA = FILTRO.size ? DATA.filter(r => FILTRO.has((r['REGIMEN']||'').trim())) : DATA;
+}
+function pestanaActiva(){
+  const t=document.querySelector('.tab.on'); return t ? t.dataset.v : 'panorama';
+}
+// Las casillas se arman desde DATA, nunca desde VISTA: si salieran de la vista
+// filtrada, las demas opciones desapareceran al marcar la primera.
+function poblarPanel(){
+  const m={};
+  DATA.forEach(r=>{ const k=(r['REGIMEN']||'').trim(); m[k]=(m[k]||0)+1; });
+  // Al recargar solo sobreviven las marcas cuyo regimen siga en los datos.
+  FILTRO = new Set([...FILTRO].filter(k=>k in m));
+  const panel=document.getElementById('f-panel');
+  panel.innerHTML='';
+  Object.entries(m).sort((a,b)=>b[1]-a[1]).forEach(([k,n])=>{
+    const op=document.createElement('label'); op.className='filtro-op';
+    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=FILTRO.has(k);
+    cb.addEventListener('change',()=>{ cb.checked?FILTRO.add(k):FILTRO.delete(k); refrescar(); });
+    const txt=document.createElement('span'); txt.textContent = k==='' ? '(sin dato)' : shorten(k);
+    const cnt=document.createElement('span'); cnt.className='n'; cnt.textContent=fmt(n);
+    op.append(cb,txt,cnt); panel.appendChild(op);
+  });
+}
+// destroyAll() limpia BUILT, asi que las pestanas no visibles se rearman solas
+// al visitarlas; aqui solo hay que reconstruir la que se esta viendo.
+function refrescar(){
+  aplicarFiltro();
+  destroyAll();
+  kpis();
+  build(pestanaActiva());
+  pintarFiltro();
+}
+function pintarFiltro(){
+  const n=FILTRO.size;
+  let txt='Todos los regímenes';
+  if(n===1){ const k=[...FILTRO][0]; txt = k==='' ? '(sin dato)' : shorten(k); }
+  else if(n>1){ txt = n+' regímenes'; }
+  document.getElementById('f-txt').textContent=txt;
+  document.getElementById('f-btn').classList.toggle('activo', n>0);
+  document.getElementById('f-res').textContent=fmt(VISTA.length)+' de '+fmt(DATA.length)+' embarcaciones';
+  document.getElementById('f-limpiar').hidden = n===0;
+}
+function abrirPanel(abrir){
+  document.getElementById('f-panel').hidden=!abrir;
+  document.getElementById('f-btn').setAttribute('aria-expanded', abrir?'true':'false');
+}
+
 // ====== AGREGACIONES ======
 function conteo(campo, mapfn){
   const m={};
-  DATA.forEach(r=>{ let k=(r[campo]||'').trim(); if(mapfn)k=mapfn(k); if(k==='')k='(sin dato)'; m[k]=(m[k]||0)+1; });
+  VISTA.forEach(r=>{ let k=(r[campo]||'').trim(); if(mapfn)k=mapfn(k); if(k==='')k='(sin dato)'; m[k]=(m[k]||0)+1; });
   return m;
 }
 function ordenar(obj, topN){
@@ -252,13 +338,13 @@ function ordenar(obj, topN){
 function estadoPermiso(v){ v=v.toUpperCase(); if(v.startsWith('SUSPENDIDO'))return 'SUSPENDIDO'; return v; }
 function segmentoEslora(){
   const bins=[0,10,15,22.9,32.5,999], lab=['<10 m','10-15 m','15-22.9 m','23-32.5 m','>32.5 m'], c=[0,0,0,0,0];
-  DATA.forEach(r=>{ const e=num(r['ESLORA']); if(e===null||e<=0)return;
+  VISTA.forEach(r=>{ const e=num(r['ESLORA']); if(e===null||e<=0)return;
     for(let i=0;i<5;i++){ if(e>bins[i]&&e<=bins[i+1]){c[i]++;break;} } });
   return {labels:lab, vals:c};
 }
 function evolucion(){
   const m={};
-  DATA.forEach(r=>{ const y=parseAnio((r['FECHA RESOLUCION']||'').trim());
+  VISTA.forEach(r=>{ const y=parseAnio((r['FECHA RESOLUCION']||'').trim());
     if(y&&y>=1990&&y<=new Date().getFullYear()) m[y]=(m[y]||0)+1; });
   const yrs=Object.keys(m).map(Number).sort((a,b)=>a-b);
   return {labels:yrs, vals:yrs.map(y=>m[y])};
@@ -271,7 +357,7 @@ function parseAnio(f){
 }
 function capPorRegimen(){
   const m={};
-  DATA.forEach(r=>{ const k=(r['REGIMEN']||'(sin dato)').trim(); const c=num(r['CAPBOD_M3'])||0; m[k]=(m[k]||0)+c; });
+  VISTA.forEach(r=>{ const k=(r['REGIMEN']||'(sin dato)').trim(); const c=num(r['CAPBOD_M3'])||0; m[k]=(m[k]||0)+c; });
   return ordenar(m);
 }
 function shorten(s){
@@ -281,12 +367,12 @@ function shorten(s){
 
 // ====== KPIs ======
 function kpis(){
-  const total=DATA.length;
+  const total=VISTA.length;
   const estados=conteo('PERMISO PESCA', estadoPermiso);
   const vig=estados['VIGENTE']||0;
-  const capTot=DATA.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0);
-  const potTot=DATA.reduce((s,r)=>{const p=num(r['POTENCIA MOTOR']); return s+((p&&p>0&&p<POT_MAX)?p:0);},0);
-  const armadores=new Set(DATA.map(r=>(r['ARMADOR']||'').trim()).filter(Boolean)).size;
+  const capTot=VISTA.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0);
+  const potTot=VISTA.reduce((s,r)=>{const p=num(r['POTENCIA MOTOR']); return s+((p&&p>0&&p<POT_MAX)?p:0);},0);
+  const armadores=new Set(VISTA.map(r=>(r['ARMADOR']||'').trim()).filter(Boolean)).size;
   document.getElementById('k-total').textContent=fmt(total);
   document.getElementById('m-total').textContent=fmt(total)+' embarcaciones';
   document.getElementById('k-armadores').textContent=fmt(armadores)+' armadores';
@@ -349,8 +435,10 @@ function build(v){
 function render(){
   document.getElementById('loader').style.display='none';
   document.getElementById('app').style.display='block';
+  aplicarFiltro();
   kpis();
-  build('panorama');
+  build(pestanaActiva());
+  pintarFiltro();
 }
 
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
@@ -359,6 +447,21 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   t.classList.add('on');
   const v=t.dataset.v; document.getElementById(v).classList.add('on'); build(v);
 }));
+
+document.getElementById('f-btn').addEventListener('click', e=>{
+  e.stopPropagation();
+  abrirPanel(document.getElementById('f-panel').hidden);
+});
+document.getElementById('f-limpiar').addEventListener('click', ()=>{
+  FILTRO.clear();
+  document.querySelectorAll('#f-panel input').forEach(c=>c.checked=false);
+  refrescar();
+});
+// Clic fuera y Escape cierran el panel; adentro (incluidas las casillas) no.
+document.addEventListener('click', e=>{
+  if(!document.querySelector('.filtro').contains(e.target)) abrirPanel(false);
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') abrirPanel(false); });
 
 cargar();
 </script>
