@@ -105,16 +105,18 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
 
 ## Reportes (pestaña)
 - «Menor escala por especie» cuenta embarcaciones de menor escala que llevan una especie entre sus
-  CHD vigentes. Por ahora solo Anchoveta (`ANCH`) y Bacalao (`BAC`); está pensado para crecer con más
-  filas en el mismo arreglo de la rama `build('reportes')`.
+  CHD vigentes: Anchoveta (`ANCH`), Bacalao (`BAC`), Anguila (`ANGL`) y Merluza (`MERLZ`). Crece
+  agregando una fila más al arreglo de la rama `build('reportes')`.
 - Menor escala son las **tres** variantes de `REGIMEN` (`MENOR ESCALA`, `... (ANCHOVETA)` y
   `... - ARTESANAL`), por eso `esMenorEscala()` compara con `includes('MENOR ESCALA')`.
 - `ESPECIE CHD VIGENTES` es una lista separada por `/` (ej. `AB/ANCH/R.H.`). `conEspecie()` usa
-  `includes()` porque ninguno de los 110 códigos de la columna contiene `ANCH` ni `BAC` como
+  `includes()` porque ninguno de los 110 códigos de la columna contiene a otro de los usados como
   subcadena. **Al agregar una especie nueva hay que volver a comprobar eso**, o el conteo se infla en
-  silencio con códigos que apenas la contienen.
+  silencio con códigos que apenas la contienen. La columna tiene códigos parecidos que no son el
+  mismo: `ANG` ≠ `ANGL`, y `MERLZ` (merluza) convive con `MERLI` y `MERO`.
 - El cuadro lee `VISTA`: responde a los filtros como el resto del tablero. Con el arranque por defecto
-  (vigentes + suspendidas, sin `INC. DEF`) da 338 y 9; sobre las 2,234 sin filtrar, 352 y 11.
+  (vigentes + suspendidas, sin `INC. DEF`) da 338 · 9 · 19 · 1; sobre las 2,234 sin filtrar,
+  352 · 11 · 28 · 1.
 
 ## Trampa conocida (no es un bug que arreglar)
 - En algunos entornos de previsualización local, el `fetch` al CSV falla por **CORS**. El código ya detecta ese caso y muestra un mensaje claro en `#errbox`.
