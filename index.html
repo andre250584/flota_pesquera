@@ -93,6 +93,11 @@
   .card{background:var(--panel);border-radius:10px;padding:16px 18px 12px;box-shadow:0 4px 14px rgba(94,84,70,.07)}
   .card h3{font-size:.9rem;font-weight:700;margin-bottom:2px;color:var(--gris-txt)}
   .card .cap{font-size:.73rem;color:var(--gris-txt2);margin-bottom:10px;font-weight:400}
+  .tabla{width:100%;border-collapse:collapse;font-size:.85rem;margin-top:4px}
+  .tabla td{padding:10px 2px;border-bottom:1px solid var(--linea)}
+  .tabla tr:last-child td{border-bottom:none}
+  .tabla td.num{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:#000}
+  .tabla td .sub{display:block;font-size:.71rem;color:var(--gris-txt2);font-weight:400;margin-top:2px}
   .chartbox{position:relative;height:230px}
   .chartbox.tall{height:320px}
   .view{display:none}
@@ -175,7 +180,7 @@
     <div class="tabs">
       <button class="tab on" data-v="panorama">Panorama</button>
       <button class="tab" data-v="evolucion">Evolución</button>
-      <button class="tab" data-v="registro">Registro</button>
+      <button class="tab" data-v="reportes">Reportes</button>
     </div>
 
     <div class="view on" id="panorama">
@@ -198,7 +203,15 @@
       <div class="card"><h3>Resoluciones de permiso por año</h3><div class="cap">Altas registradas según fecha de resolución</div><div class="chartbox tall" style="height:360px"><canvas id="c_evol"></canvas></div></div>
     </div>
 
-    <div class="view" id="registro"></div>
+    <div class="view" id="reportes">
+      <div class="grid g2">
+        <div class="card">
+          <h3>Menor escala por especie</h3>
+          <div class="cap">Embarcaciones que llevan la especie entre sus CHD vigentes</div>
+          <table class="tabla"><tbody id="t-especies"></tbody></table>
+        </div>
+      </div>
+    </div>
 
     <div class="foot-src">Ministerio de la Producción · Datos en vivo desde Google Sheets (CSV publicado)</div>
   </div>
@@ -419,6 +432,16 @@ function capPorRegimen(){
   VISTA.forEach(r=>{ const k=(r['REGIMEN']||'(sin dato)').trim(); const c=num(r['CAPBOD_M3'])||0; m[k]=(m[k]||0)+c; });
   return ordenar(m);
 }
+// El REGIMEN de menor escala viene en tres variantes ("MENOR ESCALA",
+// "... (ANCHOVETA)" y "... - ARTESANAL"): las tres cuentan.
+const esMenorEscala = r => (r['REGIMEN']||'').toUpperCase().includes('MENOR ESCALA');
+// ESPECIE CHD VIGENTES es una lista separada por "/" (ej. "AB/ANCH/R.H.").
+// Ningun otro de los 110 codigos de la columna contiene ANCH ni BAC como
+// subcadena, asi que basta con includes(); si se agrega una especie nueva hay
+// que volver a comprobarlo.
+function conEspecie(filas, cod){
+  return filas.filter(r => (r['ESPECIE CHD VIGENTES']||'').toUpperCase().includes(cod)).length;
+}
 function shorten(s){
   return s.replace('DECRETO LEY N°','DL').replace('LEY N°','Ley').replace(' (ANCHOVETA)',' (Anch)')
           .replace(' - ARTESANAL','-Art').replace('MENOR ESCALA','M. Escala').replace('-PRODUCE','');
@@ -482,6 +505,13 @@ function build(v){
     bars('c_arm',arm.labels.map(s=>s.length>26?s.slice(0,24)+'…':s),arm.vals,VIOLETA,true);
     // Mismo teal que "Embarcaciones por regimen": es la misma dimension vista con otra medida.
     const cr=capPorRegimen(); bars('c_capreg',cr.labels.map(shorten),cr.vals,TEAL,true);
+  }
+  if(v==='reportes'){
+    const me=VISTA.filter(esMenorEscala);
+    const filas=[['Anchoveta (Menor Escala)','ANCH'],['Bacalao (Menor Escala)','BAC']];
+    document.getElementById('t-especies').innerHTML = filas.map(([lab,cod])=>
+      '<tr><td>'+lab+'<span class="sub">'+cod+' en ESPECIE CHD VIGENTES</span></td>'
+      +'<td class="num">'+fmt(conEspecie(me,cod))+'</td></tr>').join('');
   }
   if(v==='evolucion'){
     const e=evolucion();
