@@ -70,7 +70,7 @@
   .filtro{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
   .filtro-lab{font-size:.72rem;font-weight:600;color:var(--gris-txt2)}
   .filtro-box{position:relative}
-  .filtro-btn{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--linea);border-radius:7px;padding:7px 11px;font-family:inherit;font-size:.78rem;font-weight:600;color:var(--gris-txt);cursor:pointer;min-width:200px;text-align:left}
+  .filtro-btn{display:flex;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--linea);border-radius:7px;padding:7px 11px;font-family:inherit;font-size:.78rem;font-weight:600;color:var(--gris-txt);cursor:pointer;min-width:178px;text-align:left}
   .filtro-btn:hover{border-color:var(--gris-txt2)}
   .filtro-btn.activo{border-color:var(--rojo);color:var(--rojo)}
   .filtro-btn .caret{margin-left:auto;font-size:.68rem;opacity:.7}
@@ -154,8 +154,15 @@
         </button>
         <div id="f-panel" class="filtro-panel" hidden></div>
       </div>
+      <span class="filtro-lab">Estado del permiso</span>
+      <div class="filtro-box">
+        <button id="e-btn" class="filtro-btn" type="button" aria-haspopup="true" aria-expanded="false">
+          <span id="e-txt">Todos los estados</span><span class="caret">▾</span>
+        </button>
+        <div id="e-panel" class="filtro-panel" hidden></div>
+      </div>
       <span class="filtro-res" id="f-res">—</span>
-      <button id="f-limpiar" class="filtro-limpiar" type="button" hidden>Limpiar</button>
+      <button id="f-reset" class="filtro-limpiar" type="button" hidden>Restablecer</button>
     </div>
 
     <div class="tabs">
@@ -235,9 +242,8 @@ Chart.defaults.plugins.legend.labels.boxWidth=12;
 const fmt = n => Math.round(n).toLocaleString('es-PE');
 const num = v => { const x = parseFloat(String(v).replace(/,/g,'').trim()); return isNaN(x)?null:x; };
 let CHARTS={}, DATA=[], BUILT={};
-// DATA es el CSV crudo; VISTA es lo que miran KPIs y graficos. FILTRO guarda los
-// valores crudos de REGIMEN marcados.
-let FILTRO=new Set(), VISTA=[];
+// DATA es el CSV crudo; VISTA es lo que miran KPIs y graficos.
+let VISTA=[];
 
 function destroyAll(){ Object.values(CHARTS).forEach(c=>c&&c.destroy()); CHARTS={}; BUILT={}; }
 
@@ -255,7 +261,7 @@ async function cargar(){
     const res = Papa.parse(text, {header:true, skipEmptyLines:true});
     DATA = res.data.filter(r => (r['MATRICULA']||'').trim() !== '');
     if(!DATA.length){ mostrarError('El CSV se descargó pero no trae filas. Verifica que la pestaña publicada sea la Matriz.'); return; }
-    poblarPanel();
+    poblarPaneles();
     render();
   } catch(err){
     let base = err.message || String(err);
@@ -273,31 +279,60 @@ function mostrarError(msg){
   e.innerHTML='<b>Error al cargar</b><br>'+msg;
 }
 
-// ====== FILTRO POR REGIMEN ======
-// Un FILTRO vacio significa "todos", no "nada": asi no existe el estado de
+// ====== FILTROS ======
+// Dos filtros comparten un solo mecanismo: cada uno declara de que columna sale
+// su valor, como se etiqueta y en que orden se listan sus casillas. Para sumar
+// un tercero basta otra entrada aqui mas su bloque en el HTML.
+// Un conjunto vacio significa "todos", no "nada": asi no existe el estado de
 // tablero en cero ni la division por cero de kpis().
+const FILTROS = {
+  reg: { pre:'f', todos:'Todos los regímenes', plural:'regímenes',
+         valor: r => (r['REGIMEN']||'').trim(),
+         etiqueta: shorten, orden: null,
+         def: [], sel: new Set() },
+  // El estado se agrupa con estadoPermiso() antes de comparar, o las variantes
+  // de "SUSPENDIDO ..." quedarian fuera de la casilla SUSPENDIDO.
+  // Arranca en VIGENTE + SUSPENDIDO: la flota operativa es la vista por defecto.
+  est: { pre:'e', todos:'Todos los estados', plural:'estados',
+         valor: r => estadoPermiso((r['PERMISO PESCA']||'').trim()),
+         etiqueta: v => v, orden: ['VIGENTE','SUSPENDIDO','CANCELADO','ANULADO'],
+         def: ['VIGENTE','SUSPENDIDO'], sel: new Set(['VIGENTE','SUSPENDIDO']) }
+};
+const etiquetaDe = (f,k) => k==='' ? '(sin dato)' : f.etiqueta(k);
+const activos = () => Object.values(FILTROS);
+
 function aplicarFiltro(){
-  VISTA = FILTRO.size ? DATA.filter(r => FILTRO.has((r['REGIMEN']||'').trim())) : DATA;
+  VISTA = DATA.filter(r => activos().every(f => !f.sel.size || f.sel.has(f.valor(r))));
 }
 function pestanaActiva(){
   const t=document.querySelector('.tab.on'); return t ? t.dataset.v : 'panorama';
 }
 // Las casillas se arman desde DATA, nunca desde VISTA: si salieran de la vista
 // filtrada, las demas opciones desapareceran al marcar la primera.
-function poblarPanel(){
-  const m={};
-  DATA.forEach(r=>{ const k=(r['REGIMEN']||'').trim(); m[k]=(m[k]||0)+1; });
-  // Al recargar solo sobreviven las marcas cuyo regimen siga en los datos.
-  FILTRO = new Set([...FILTRO].filter(k=>k in m));
-  const panel=document.getElementById('f-panel');
-  panel.innerHTML='';
-  Object.entries(m).sort((a,b)=>b[1]-a[1]).forEach(([k,n])=>{
-    const op=document.createElement('label'); op.className='filtro-op';
-    const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=FILTRO.has(k);
-    cb.addEventListener('change',()=>{ cb.checked?FILTRO.add(k):FILTRO.delete(k); refrescar(); });
-    const txt=document.createElement('span'); txt.textContent = k==='' ? '(sin dato)' : shorten(k);
-    const cnt=document.createElement('span'); cnt.className='n'; cnt.textContent=fmt(n);
-    op.append(cb,txt,cnt); panel.appendChild(op);
+function poblarPaneles(){
+  activos().forEach(f=>{
+    const m={};
+    DATA.forEach(r=>{ const k=f.valor(r); m[k]=(m[k]||0)+1; });
+    // Al recargar solo sobreviven las marcas cuyo valor siga en los datos.
+    f.sel = new Set([...f.sel].filter(k=>k in m));
+    let ents=Object.entries(m);
+    // Con orden fijo manda la escala declarada (el estado es ordinal, no una
+    // frecuencia); sin ella, las categorias van de mayor a menor.
+    if(f.orden) ents.sort((a,b)=>{
+      const ia=f.orden.indexOf(a[0]), ib=f.orden.indexOf(b[0]);
+      return (ia<0?99:ia)-(ib<0?99:ib) || b[1]-a[1];
+    });
+    else ents.sort((a,b)=>b[1]-a[1]);
+    const panel=document.getElementById(f.pre+'-panel');
+    panel.innerHTML='';
+    ents.forEach(([k,n])=>{
+      const op=document.createElement('label'); op.className='filtro-op';
+      const cb=document.createElement('input'); cb.type='checkbox'; cb.checked=f.sel.has(k);
+      cb.addEventListener('change',()=>{ cb.checked?f.sel.add(k):f.sel.delete(k); refrescar(); });
+      const txt=document.createElement('span'); txt.textContent=etiquetaDe(f,k);
+      const cnt=document.createElement('span'); cnt.className='n'; cnt.textContent=fmt(n);
+      op.append(cb,txt,cnt); panel.appendChild(op);
+    });
   });
 }
 // destroyAll() limpia BUILT, asi que las pestanas no visibles se rearman solas
@@ -307,21 +342,30 @@ function refrescar(){
   destroyAll();
   kpis();
   build(pestanaActiva());
-  pintarFiltro();
+  pintarFiltros();
 }
-function pintarFiltro(){
-  const n=FILTRO.size;
-  let txt='Todos los regímenes';
-  if(n===1){ const k=[...FILTRO][0]; txt = k==='' ? '(sin dato)' : shorten(k); }
-  else if(n>1){ txt = n+' regímenes'; }
-  document.getElementById('f-txt').textContent=txt;
-  document.getElementById('f-btn').classList.toggle('activo', n>0);
+const esDefecto = f => f.sel.size===f.def.length && f.def.every(k=>f.sel.has(k));
+function pintarFiltros(){
+  activos().forEach(f=>{
+    const n=f.sel.size;
+    let txt=f.todos;
+    if(n===1) txt=etiquetaDe(f,[...f.sel][0]);
+    else if(n>1) txt=n+' '+f.plural;
+    document.getElementById(f.pre+'-txt').textContent=txt;
+    document.getElementById(f.pre+'-btn').classList.toggle('activo', n>0);
+  });
   document.getElementById('f-res').textContent=fmt(VISTA.length)+' de '+fmt(DATA.length)+' embarcaciones';
-  document.getElementById('f-limpiar').hidden = n===0;
+  // El boton devuelve la pagina a como carga, no a "sin filtros": el estado
+  // tiene un defecto propio y perderlo seria un viaje de ida.
+  document.getElementById('f-reset').hidden = activos().every(esDefecto);
 }
-function abrirPanel(abrir){
-  document.getElementById('f-panel').hidden=!abrir;
-  document.getElementById('f-btn').setAttribute('aria-expanded', abrir?'true':'false');
+// Solo un panel abierto a la vez.
+function abrirPanel(pre){
+  activos().forEach(f=>{
+    const abrir = f.pre===pre;
+    document.getElementById(f.pre+'-panel').hidden=!abrir;
+    document.getElementById(f.pre+'-btn').setAttribute('aria-expanded', abrir?'true':'false');
+  });
 }
 
 // ====== AGREGACIONES ======
@@ -438,7 +482,7 @@ function render(){
   aplicarFiltro();
   kpis();
   build(pestanaActiva());
-  pintarFiltro();
+  pintarFiltros();
 }
 
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
@@ -448,20 +492,23 @@ document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
   const v=t.dataset.v; document.getElementById(v).classList.add('on'); build(v);
 }));
 
-document.getElementById('f-btn').addEventListener('click', e=>{
-  e.stopPropagation();
-  abrirPanel(document.getElementById('f-panel').hidden);
+activos().forEach(f=>{
+  document.getElementById(f.pre+'-btn').addEventListener('click', e=>{
+    e.stopPropagation();
+    const cerrado=document.getElementById(f.pre+'-panel').hidden;
+    abrirPanel(cerrado ? f.pre : null);
+  });
 });
-document.getElementById('f-limpiar').addEventListener('click', ()=>{
-  FILTRO.clear();
-  document.querySelectorAll('#f-panel input').forEach(c=>c.checked=false);
+document.getElementById('f-reset').addEventListener('click', ()=>{
+  activos().forEach(f=>{ f.sel=new Set(f.def); });
+  poblarPaneles();   // rearma las casillas ya marcadas segun el defecto
   refrescar();
 });
 // Clic fuera y Escape cierran el panel; adentro (incluidas las casillas) no.
 document.addEventListener('click', e=>{
-  if(!document.querySelector('.filtro').contains(e.target)) abrirPanel(false);
+  if(!document.querySelector('.filtro').contains(e.target)) abrirPanel(null);
 });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape') abrirPanel(false); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') abrirPanel(null); });
 
 cargar();
 </script>
