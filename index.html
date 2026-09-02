@@ -51,14 +51,14 @@
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:-24px 0 22px;position:relative;z-index:1}
   .kpi{background:var(--panel);border-radius:10px;padding:16px 16px 14px;box-shadow:0 6px 18px rgba(94,84,70,.10);border-top:4px solid var(--rojo)}
   .kpi .lab{font-size:.7rem;color:var(--gris-txt2);font-weight:600;text-transform:none}
-  .kpi .val{font-size:1.55rem;font-weight:800;margin-top:6px;line-height:1;color:var(--rojo)}
+  .kpi .val{font-size:1.55rem;font-weight:800;margin-top:6px;line-height:1;color:#000000}
   .kpi .foot{font-size:.71rem;color:var(--gris-txt);margin-top:6px;font-weight:400}
   .kpi .foot b{color:inherit;font-weight:700}
-  /* Cada KPI toma el color de lo que mide, el mismo que usa su grafico. */
-  .kpi.k-vig{border-top-color:var(--verde)}   .kpi.k-vig .val,   .kpi.k-vig .foot b{color:var(--verde)}
-  .kpi.k-cap{border-top-color:var(--teal)}    .kpi.k-cap .val{color:var(--teal)}
-  .kpi.k-pot{border-top-color:var(--violeta)} .kpi.k-pot .val{color:var(--violeta)}
-  .kpi.k-nov{border-top-color:var(--ambar)}   .kpi.k-nov .val{color:var(--ambar)}
+  /* Cada KPI conserva en el borde el color de lo que mide, el mismo que usa su grafico. */
+  .kpi.k-vig{border-top-color:var(--verde)}   .kpi.k-vig .foot b{color:var(--verde)}
+  .kpi.k-cap{border-top-color:var(--teal)}
+  .kpi.k-pot{border-top-color:var(--violeta)}
+  .kpi.k-nov{border-top-color:var(--ambar)}
 
   /* Tabs */
   .tabs{display:flex;gap:4px;border-bottom:2px solid var(--linea);margin-bottom:20px;flex-wrap:wrap}
