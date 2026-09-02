@@ -23,7 +23,7 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 - CSV publicado de Google Sheets (hoja `Matriz`), en la constante `URL_MATRIZ` al inicio del `<script>`.
 - Para cambiar la fuente o sumar la hoja de historial (`Crudo`), edita esa constante / agrega otra; no dupliques la lógica de fetch.
 - La columna de embarcación es `MATRICULA`; una fila = una embarcación. Las filas sin `MATRICULA` se descartan al parsear.
-- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`. Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
+- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
 
 ## Flujo de ejecución
 1. `cargar()` — se llama al final del script y desde el botón «↻ Actualizar». Añade `?t=Date.now()` al URL y usa `cache:'no-store'` para evitar el CSV cacheado; llama a `destroyAll()` antes de recargar.
@@ -56,6 +56,11 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 - «Restablecer» devuelve la página a como carga (régimen vacío, estado en su defecto), no a "sin
   filtros"; se oculta cuando ya está en ese estado. Al recargar sobreviven las marcas cuyo valor siga
   existiendo en los datos frescos.
+- El check **«Excluir INC. DEF»** saca del reporte las embarcaciones con `INC. DEF = SI` (187 hoy, y
+  todas suspendidas: al marcarlo el defecto pasa de 1,511 a 1,324 sin tocar las vigentes). Va **fuera**
+  de `FILTROS` — es un sí/no, no una lista de categorías — como el booleano `EXCL_INC` más el
+  predicado `esIncDef()`; se combina con los otros filtros en `aplicarFiltro()`. Arranca apagado y
+  «Restablecer» lo apaga.
 - Consecuencia esperada y aceptada: con un filtro puesto, «Embarcaciones por régimen» y «Capacidad de
   bodega por régimen» muestran solo las barras seleccionadas. No es un defecto.
 
