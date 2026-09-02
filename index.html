@@ -80,6 +80,10 @@
   .filtro-op:hover{background:var(--fondo)}
   .filtro-op input{accent-color:var(--rojo);cursor:pointer;flex:none}
   .filtro-op .n{margin-left:auto;padding-left:14px;font-size:.72rem;font-weight:600;color:var(--gris-txt2)}
+  .filtro-check{display:flex;align-items:center;gap:7px;font-size:.75rem;font-weight:600;color:var(--gris-txt);cursor:pointer;user-select:none}
+  .filtro-check.activo{color:var(--rojo)}
+  .filtro-check input{accent-color:var(--rojo);cursor:pointer}
+  .filtro-check .n{font-weight:600;color:var(--gris-txt2)}
   .filtro-res{font-size:.73rem;color:var(--gris-txt2);font-weight:500}
   .filtro-limpiar{background:none;border:none;font-family:inherit;font-size:.73rem;font-weight:600;color:var(--rojo);cursor:pointer;text-decoration:underline;padding:0}
 
@@ -161,6 +165,9 @@
         </button>
         <div id="e-panel" class="filtro-panel" hidden></div>
       </div>
+      <label class="filtro-check" id="x-lab" title="Quita del reporte las embarcaciones con INC. DEF = SI">
+        <input type="checkbox" id="x-inc"> Excluir INC. DEF <span class="n" id="x-n"></span>
+      </label>
       <span class="filtro-res" id="f-res">—</span>
       <button id="f-reset" class="filtro-limpiar" type="button" hidden>Restablecer</button>
     </div>
@@ -298,11 +305,17 @@ const FILTROS = {
          etiqueta: v => v, orden: ['VIGENTE','SUSPENDIDO','CANCELADO','ANULADO'],
          def: ['VIGENTE','SUSPENDIDO'], sel: new Set(['VIGENTE','SUSPENDIDO']) }
 };
+// Exclusion aparte de FILTROS: no es una lista de categorias sino un si/no,
+// asi que no entra en el mecanismo de casillas. Apagada por defecto.
+let EXCL_INC = false;
+const esIncDef = r => (r['INC. DEF']||'').trim().toUpperCase()==='SI';
 const etiquetaDe = (f,k) => k==='' ? '(sin dato)' : f.etiqueta(k);
 const activos = () => Object.values(FILTROS);
 
 function aplicarFiltro(){
-  VISTA = DATA.filter(r => activos().every(f => !f.sel.size || f.sel.has(f.valor(r))));
+  VISTA = DATA.filter(r =>
+    (!EXCL_INC || !esIncDef(r)) &&
+    activos().every(f => !f.sel.size || f.sel.has(f.valor(r))));
 }
 function pestanaActiva(){
   const t=document.querySelector('.tab.on'); return t ? t.dataset.v : 'panorama';
@@ -354,10 +367,12 @@ function pintarFiltros(){
     document.getElementById(f.pre+'-txt').textContent=txt;
     document.getElementById(f.pre+'-btn').classList.toggle('activo', n>0);
   });
+  document.getElementById('x-n').textContent='('+fmt(DATA.filter(esIncDef).length)+')';
+  document.getElementById('x-lab').classList.toggle('activo', EXCL_INC);
   document.getElementById('f-res').textContent=fmt(VISTA.length)+' de '+fmt(DATA.length)+' embarcaciones';
   // El boton devuelve la pagina a como carga, no a "sin filtros": el estado
   // tiene un defecto propio y perderlo seria un viaje de ida.
-  document.getElementById('f-reset').hidden = activos().every(esDefecto);
+  document.getElementById('f-reset').hidden = activos().every(esDefecto) && !EXCL_INC;
 }
 // Solo un panel abierto a la vez.
 function abrirPanel(pre){
@@ -499,8 +514,13 @@ activos().forEach(f=>{
     abrirPanel(cerrado ? f.pre : null);
   });
 });
+document.getElementById('x-inc').addEventListener('change', e=>{
+  EXCL_INC = e.target.checked;
+  refrescar();
+});
 document.getElementById('f-reset').addEventListener('click', ()=>{
   activos().forEach(f=>{ f.sel=new Set(f.def); });
+  EXCL_INC=false; document.getElementById('x-inc').checked=false;
   poblarPaneles();   // rearma las casillas ya marcadas segun el defecto
   refrescar();
 });
