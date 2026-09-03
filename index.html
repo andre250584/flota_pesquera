@@ -226,6 +226,9 @@
           <thead id="t-cruz-h"></thead><tbody id="t-cruz-b"></tbody>
         </table></div>
       </div>
+      <!-- Cuadro «Menor escala por especie»: oculto a pedido, se puede volver a
+           usar. Para reactivarlo hay que descomentar TAMBIEN su bloque en la rama
+           build('reportes'), o al quedar solo uno de los dos el otro falla.
       <div class="grid g2">
         <div class="card">
           <h3>Menor escala por especie</h3>
@@ -233,6 +236,7 @@
           <table class="tabla"><tbody id="t-especies"></tbody></table>
         </div>
       </div>
+      -->
     </div>
 
     <div class="foot-src">Ministerio de la Producción · Datos en vivo desde Google Sheets (CSV publicado)</div>
@@ -456,6 +460,8 @@ function capPorRegimen(){
 }
 // El REGIMEN de menor escala viene en tres variantes ("MENOR ESCALA",
 // "... (ANCHOVETA)" y "... - ARTESANAL"): las tres cuentan.
+// Sin uso activo: su unica llamada esta en el cuadro comentado de menor escala
+// por especie. No es codigo muerto, hace falta si ese cuadro vuelve.
 const esMenorEscala = r => (r['REGIMEN']||'').toUpperCase().includes('MENOR ESCALA');
 // Las columnas de especie son listas separadas por "/" (ej. "AB/ANCH/R.H.").
 // Se compara el codigo COMPLETO, no por subcadena: hay codigos que contienen a
@@ -561,13 +567,18 @@ function build(v){
     document.getElementById('t-cruz-b').innerHTML = cuerpo +
       '<tr class="total"><td>TOTAL</td>'+tot.map(x=>'<td>'+fmt(x)+'</td>').join('')+'</tr>';
 
-    // --- Cuadro de menor escala por especie ---
+    // --- Cuadro de menor escala por especie: oculto a pedido ---
+    // Va junto con su marcado, comentado en la vista #reportes. Si se
+    // descomenta solo uno de los dos, esto revienta contra un getElementById
+    // nulo o la tabla queda vacia para siempre.
+    /*
     const me=VISTA.filter(esMenorEscala);
     const filas=[['Anchoveta (Menor Escala)','ANCH'],['Bacalao (Menor Escala)','BAC'],
                  ['Anguila (Menor Escala)','ANGL'],['Merluza (Menor Escala)','MERLZ']];
     document.getElementById('t-especies').innerHTML = filas.map(([lab,cod])=>
       '<tr><td>'+lab+'<span class="sub">'+cod+' en ESPECIE CHD VIGENTES</span></td>'
       +'<td class="num">'+fmt(conEspecie(me,cod))+'</td></tr>').join('');
+    */
   }
   if(v==='evolucion'){
     const e=evolucion();
