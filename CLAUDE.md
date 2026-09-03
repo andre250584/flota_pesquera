@@ -23,7 +23,7 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 - CSV publicado de Google Sheets (hoja `Matriz`), en la constante `URL_MATRIZ` al inicio del `<script>`.
 - Para cambiar la fuente o sumar la hoja de historial (`Crudo`), edita esa constante / agrega otra; no dupliques la lógica de fetch.
 - La columna de embarcación es `MATRICULA`; una fila = una embarcación. Las filas sin `MATRICULA` se descartan al parsear.
-- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado), `ESPECIE CHD VIGENTES` (columna Z), `ESPECIE CHI VIGENTES` (columna AB). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
+- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado), `ESPECIE CHD VIGENTES` (columna Z), `ESPECIE CHI VIGENTES` (columna AB), `PMCE NORTE-CENTRO` (columna AD). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
 
 ## Flujo de ejecución
 1. `cargar()` — se llama al final del script y desde el botón «↻ Actualizar». Añade `?t=Date.now()` al URL y usa `cache:'no-store'` para evitar el CSV cacheado; llama a `destroyAll()` antes de recargar.
@@ -106,10 +106,15 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
 ## Reportes (pestaña)
 - «Flota pesquera por régimen y tipo de acceso» cruza régimen (filas) × especie (columnas), con fila
   TOTAL. `Anch. CHI` sale de `ESPECIE CHI VIGENTES`; el resto de las columnas, de `ESPECIE CHD
-  VIGENTES`. Los regímenes fuera de `ORDEN_REG` se agregan al final en vez de desaparecer: el reporte
+  VIGENTES`. **`Anch. CHI` lleva una condición extra**: además de la especie, la embarcación tiene
+  que tener `PMCE NORTE-CENTRO` (columna AD) con dato. Es el cuarto elemento opcional de su entrada
+  en `COLS`, que `conEspecie()` recibe como `extra`. Las columnas PMCE se **reasignan por temporada**:
+  entre dos descargas con 24 h de diferencia cambiaron en 1,250 filas manteniendo el mismo total, así
+  que no anotes cifras esperadas de esta columna en el código ni en este archivo — envejecen en días.
+  Los regímenes fuera de `ORDEN_REG` se agregan al final en vez de desaparecer: el reporte
   oficial en papel solo lista cinco, pero el cuadro no puede esconder embarcaciones.
 - Las cifras del cuadro reproducen el reporte oficial con diferencias de 1 a 3 embarcaciones, porque
-  la hoja es viva. El recorte que lo reproduce es justamente el de arranque: vigentes + suspendidas,
+  la hoja es viva (`Anch. CHI` solo cuadra con la condición del PMCE puesta; sin ella se pasa). El recorte que lo reproduce es justamente el de arranque: vigentes + suspendidas,
   sin `INC. DEF`.
 - **La fila TOTAL lleva `:not(.total)` en la regla de cebreado.** Sin eso, `:nth-child(even)` le gana
   en especificidad al fondo oscuro y la deja en blanco sobre casi blanco — y solo cuando cae en
