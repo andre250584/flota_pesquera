@@ -549,8 +549,9 @@ function build(v){
   if(v==='reportes'){
     // --- Cuadro cruzado: regimen x especie ---
     // Anch. CHI no es solo la especie: la embarcacion ademas tiene que tener
-    // PMCE NORTE-CENTRO asignado (columna AD con dato). Sin esa condicion el
-    // conteo sube de 292 a 777, asi que no es un detalle.
+    // PMCE NORTE-CENTRO asignado (columna AD con dato). Ojo con esa columna: la
+    // cuota se reasigna por temporada, asi que no solo cambia cuantas filas la
+    // tienen sino cuales. No anotar aqui una cifra esperada: envejece en dias.
     const COLS=[['Anch. CHI',CHI,'ANCH',conDato(PMCE_NC)],['Anch. CHD',CHD,'ANCH'],['Atún',CHD,'ATU'],
                 ['Perico',CHD,'PER'],['Bacalao',CHD,'BAC'],['Pota',CHD,'POT'],['Merluza',CHD,'MERLZ'],
                 ['Anguila',CHD,'ANGL']];
