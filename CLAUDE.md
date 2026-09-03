@@ -23,7 +23,7 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 - CSV publicado de Google Sheets (hoja `Matriz`), en la constante `URL_MATRIZ` al inicio del `<script>`.
 - Para cambiar la fuente o sumar la hoja de historial (`Crudo`), edita esa constante / agrega otra; no dupliques la lógica de fetch.
 - La columna de embarcación es `MATRICULA`; una fila = una embarcación. Las filas sin `MATRICULA` se descartan al parsear.
-- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado), `ESPECIE CHD VIGENTES` (columna Z). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
+- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado), `ESPECIE CHD VIGENTES` (columna Z), `ESPECIE CHI VIGENTES` (columna AB). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
 
 ## Flujo de ejecución
 1. `cargar()` — se llama al final del script y desde el botón «↻ Actualizar». Añade `?t=Date.now()` al URL y usa `cache:'no-store'` para evitar el CSV cacheado; llama a `destroyAll()` antes de recargar.
@@ -104,16 +104,25 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   cifras (tablas `.tabla`, no gráficos), así que su rama de `build()` no toca `CHARTS`.
 
 ## Reportes (pestaña)
+- «Flota pesquera por régimen y tipo de acceso» cruza régimen (filas) × especie (columnas), con fila
+  TOTAL. `Anch. CHI` sale de `ESPECIE CHI VIGENTES`; el resto de las columnas, de `ESPECIE CHD
+  VIGENTES`. Los regímenes fuera de `ORDEN_REG` se agregan al final en vez de desaparecer: el reporte
+  oficial en papel solo lista cinco, pero el cuadro no puede esconder embarcaciones.
+- Las cifras del cuadro reproducen el reporte oficial con diferencias de 1 a 3 embarcaciones, porque
+  la hoja es viva. El recorte que lo reproduce es justamente el de arranque: vigentes + suspendidas,
+  sin `INC. DEF`.
+- **La fila TOTAL lleva `:not(.total)` en la regla de cebreado.** Sin eso, `:nth-child(even)` le gana
+  en especificidad al fondo oscuro y la deja en blanco sobre casi blanco — y solo cuando cae en
+  posición par, o sea según cuántos regímenes traiga el filtro. Es un error que se esconde solo.
 - «Menor escala por especie» cuenta embarcaciones de menor escala que llevan una especie entre sus
   CHD vigentes: Anchoveta (`ANCH`), Bacalao (`BAC`), Anguila (`ANGL`) y Merluza (`MERLZ`). Crece
   agregando una fila más al arreglo de la rama `build('reportes')`.
 - Menor escala son las **tres** variantes de `REGIMEN` (`MENOR ESCALA`, `... (ANCHOVETA)` y
   `... - ARTESANAL`), por eso `esMenorEscala()` compara con `includes('MENOR ESCALA')`.
-- `ESPECIE CHD VIGENTES` es una lista separada por `/` (ej. `AB/ANCH/R.H.`). `conEspecie()` usa
-  `includes()` porque ninguno de los 110 códigos de la columna contiene a otro de los usados como
-  subcadena. **Al agregar una especie nueva hay que volver a comprobar eso**, o el conteo se infla en
-  silencio con códigos que apenas la contienen. La columna tiene códigos parecidos que no son el
-  mismo: `ANG` ≠ `ANGL`, y `MERLZ` (merluza) convive con `MERLI` y `MERO`.
+- Las columnas de especie son listas separadas por `/` (ej. `AB/ANCH/R.H.`). `conEspecie()` compara
+  el **código completo**, nunca por subcadena: la columna tiene códigos que contienen a otro, y buscar
+  el trozo los mezcla. `PER` (perico) convive con `PERL`, `ANG` con `ANGL`, y `MERLZ` (merluza) con
+  `MERLI` y `MERO`. Cuando esto se hacía con `includes()`, perico contaba 1 embarcación de más.
 - El cuadro lee `VISTA`: responde a los filtros como el resto del tablero. Con el arranque por defecto
   (vigentes + suspendidas, sin `INC. DEF`) da 338 · 9 · 19 · 1; sobre las 2,234 sin filtrar,
   352 · 11 · 28 · 1.
