@@ -98,6 +98,17 @@
   .tabla tr:last-child td{border-bottom:none}
   .tabla td.num{text-align:right;font-weight:800;font-variant-numeric:tabular-nums;color:#000}
   .tabla td .sub{display:block;font-size:.71rem;color:var(--gris-txt2);font-weight:400;margin-top:2px}
+  /* El cuadro cruzado no cabe en pantallas chicas: rueda dentro de su caja,
+     nunca empuja el ancho de la pagina. */
+  .scrollx{overflow-x:auto;margin-top:6px}
+  .tabla-cruz{width:100%;border-collapse:collapse;font-size:.78rem;min-width:730px}
+  .tabla-cruz th{background:var(--rojo);color:#fff;font-weight:700;font-size:.73rem;line-height:1.2;padding:9px 10px;text-align:right;vertical-align:bottom}
+  .tabla-cruz th:first-child{text-align:left}
+  .tabla-cruz td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--linea);font-variant-numeric:tabular-nums;color:#000}
+  .tabla-cruz td:first-child{text-align:left;font-weight:700;color:var(--gris-txt)}
+  .tabla-cruz tbody tr:nth-child(even) td{background:var(--fondo)}
+  .tabla-cruz td.cero{color:var(--gris-txt2);font-weight:400}
+  .tabla-cruz tr.total td{background:var(--gris-txt);color:#fff;font-weight:800;border-bottom:none}
   .chartbox{position:relative;height:230px}
   .chartbox.tall{height:320px}
   .view{display:none}
@@ -204,6 +215,13 @@
     </div>
 
     <div class="view" id="reportes">
+      <div class="card" style="margin-bottom:16px">
+        <h3>Flota pesquera por régimen y tipo de acceso</h3>
+        <div class="cap">Embarcaciones por régimen y especie con permiso vigente</div>
+        <div class="scrollx"><table class="tabla-cruz">
+          <thead id="t-cruz-h"></thead><tbody id="t-cruz-b"></tbody>
+        </table></div>
+      </div>
       <div class="grid g2">
         <div class="card">
           <h3>Menor escala por especie</h3>
@@ -435,12 +453,20 @@ function capPorRegimen(){
 // El REGIMEN de menor escala viene en tres variantes ("MENOR ESCALA",
 // "... (ANCHOVETA)" y "... - ARTESANAL"): las tres cuentan.
 const esMenorEscala = r => (r['REGIMEN']||'').toUpperCase().includes('MENOR ESCALA');
-// ESPECIE CHD VIGENTES es una lista separada por "/" (ej. "AB/ANCH/R.H.").
-// Ningun otro de los 110 codigos de la columna contiene ANCH ni BAC como
-// subcadena, asi que basta con includes(); si se agrega una especie nueva hay
-// que volver a comprobarlo.
-function conEspecie(filas, cod){
-  return filas.filter(r => (r['ESPECIE CHD VIGENTES']||'').toUpperCase().includes(cod)).length;
+// Las columnas de especie son listas separadas por "/" (ej. "AB/ANCH/R.H.").
+// Se compara el codigo COMPLETO, no por subcadena: hay codigos que contienen a
+// otro (PER de perico vive junto a PERL) y buscar el trozo los mezclaria.
+const CHD='ESPECIE CHD VIGENTES', CHI='ESPECIE CHI VIGENTES';
+const tieneEspecie = (r,col,cod) =>
+  (r[col]||'').toUpperCase().split('/').some(t => t.trim()===cod);
+function conEspecie(filas, cod, col){
+  return filas.filter(r => tieneEspecie(r, col||CHD, cod)).length;
+}
+// Nombres de regimen para el cuadro ancho, donde si entran completos.
+function regimenLargo(g){
+  return g.replace('DECRETO LEY N°','D.L. N°').replace(/^LEY N°/,'Ley N°')
+          .replace('MENOR ESCALA','Menor escala').replace(' (ANCHOVETA)',' (anchoveta)')
+          .replace(' - ARTESANAL',' artesanal');
 }
 function shorten(s){
   return s.replace('DECRETO LEY N°','DL').replace('LEY N°','Ley').replace(' (ANCHOVETA)',' (Anch)')
@@ -507,6 +533,30 @@ function build(v){
     const cr=capPorRegimen(); bars('c_capreg',cr.labels.map(shorten),cr.vals,TEAL,true);
   }
   if(v==='reportes'){
+    // --- Cuadro cruzado: regimen x especie ---
+    const COLS=[['Anch. CHI',CHI,'ANCH'],['Anch. CHD',CHD,'ANCH'],['Atún',CHD,'ATU'],
+                ['Perico',CHD,'PER'],['Bacalao',CHD,'BAC'],['Pota',CHD,'POT'],['Merluza',CHD,'MERLZ']];
+    // Orden de lectura del reporte oficial; cualquier regimen fuera de la lista
+    // se agrega al final en vez de desaparecer del cuadro.
+    const ORDEN_REG=['DECRETO LEY N° 25977','LEY N° 26920','MENOR ESCALA',
+                     'MENOR ESCALA (ANCHOVETA)','MENOR ESCALA (ANCHOVETA) - ARTESANAL'];
+    const presentes=[...new Set(VISTA.map(r=>(r['REGIMEN']||'').trim()))];
+    const regs=[...ORDEN_REG.filter(g=>presentes.includes(g)),
+                ...presentes.filter(g=>!ORDEN_REG.includes(g)).sort()];
+    const celda=(n,cls)=>'<td'+(n===0?' class="cero"':(cls?' class="'+cls+'"':''))+'>'+fmt(n)+'</td>';
+    const tot=new Array(COLS.length+1).fill(0);
+    const cuerpo=regs.map(g=>{
+      const fs=VISTA.filter(r=>(r['REGIMEN']||'').trim()===g);
+      const vals=[fs.length, ...COLS.map(([,col,cod])=>conEspecie(fs,cod,col))];
+      vals.forEach((x,i)=>tot[i]+=x);
+      return '<tr><td>'+(regimenLargo(g)||'(sin dato)')+'</td>'+vals.map(x=>celda(x)).join('')+'</tr>';
+    }).join('');
+    document.getElementById('t-cruz-h').innerHTML =
+      '<tr><th>Régimen</th><th>Flota general</th>'+COLS.map(c=>'<th>'+c[0]+'</th>').join('')+'</tr>';
+    document.getElementById('t-cruz-b').innerHTML = cuerpo +
+      '<tr class="total"><td>TOTAL</td>'+tot.map(x=>'<td>'+fmt(x)+'</td>').join('')+'</tr>';
+
+    // --- Cuadro de menor escala por especie ---
     const me=VISTA.filter(esMenorEscala);
     const filas=[['Anchoveta (Menor Escala)','ANCH'],['Bacalao (Menor Escala)','BAC'],
                  ['Anguila (Menor Escala)','ANGL'],['Merluza (Menor Escala)','MERLZ']];
