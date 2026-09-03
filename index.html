@@ -225,6 +225,7 @@
         <div class="scrollx"><table class="tabla-cruz">
           <thead id="t-cruz-h"></thead><tbody id="t-cruz-b"></tbody>
         </table></div>
+        <div class="cap" style="margin:10px 0 2px">Anch. CHI cuenta además solo las que tienen PMCE NORTE-CENTRO asignado.</div>
       </div>
       <!-- Cuadro «Menor escala por especie»: oculto a pedido, se puede volver a
            usar. Para reactivarlo hay que descomentar TAMBIEN su bloque en la rama
@@ -467,10 +468,13 @@ const esMenorEscala = r => (r['REGIMEN']||'').toUpperCase().includes('MENOR ESCA
 // Se compara el codigo COMPLETO, no por subcadena: hay codigos que contienen a
 // otro (PER de perico vive junto a PERL) y buscar el trozo los mezclaria.
 const CHD='ESPECIE CHD VIGENTES', CHI='ESPECIE CHI VIGENTES';
+const PMCE_NC='PMCE NORTE-CENTRO';
 const tieneEspecie = (r,col,cod) =>
   (r[col]||'').toUpperCase().split('/').some(t => t.trim()===cod);
-function conEspecie(filas, cod, col){
-  return filas.filter(r => tieneEspecie(r, col||CHD, cod)).length;
+const conDato = campo => r => (r[campo]||'').trim()!=='';
+// `extra` es una condicion opcional ademas de la especie (ver Anch. CHI).
+function conEspecie(filas, cod, col, extra){
+  return filas.filter(r => tieneEspecie(r, col||CHD, cod) && (!extra || extra(r))).length;
 }
 // Nombres de regimen para el cuadro ancho, donde si entran completos.
 function regimenLargo(g){
@@ -544,7 +548,10 @@ function build(v){
   }
   if(v==='reportes'){
     // --- Cuadro cruzado: regimen x especie ---
-    const COLS=[['Anch. CHI',CHI,'ANCH'],['Anch. CHD',CHD,'ANCH'],['Atún',CHD,'ATU'],
+    // Anch. CHI no es solo la especie: la embarcacion ademas tiene que tener
+    // PMCE NORTE-CENTRO asignado (columna AD con dato). Sin esa condicion el
+    // conteo sube de 292 a 777, asi que no es un detalle.
+    const COLS=[['Anch. CHI',CHI,'ANCH',conDato(PMCE_NC)],['Anch. CHD',CHD,'ANCH'],['Atún',CHD,'ATU'],
                 ['Perico',CHD,'PER'],['Bacalao',CHD,'BAC'],['Pota',CHD,'POT'],['Merluza',CHD,'MERLZ'],
                 ['Anguila',CHD,'ANGL']];
     // Orden de lectura del reporte oficial; cualquier regimen fuera de la lista
@@ -558,7 +565,7 @@ function build(v){
     const tot=new Array(COLS.length+1).fill(0);
     const cuerpo=regs.map(g=>{
       const fs=VISTA.filter(r=>(r['REGIMEN']||'').trim()===g);
-      const vals=[fs.length, ...COLS.map(([,col,cod])=>conEspecie(fs,cod,col))];
+      const vals=[fs.length, ...COLS.map(([,col,cod,extra])=>conEspecie(fs,cod,col,extra))];
       vals.forEach((x,i)=>tot[i]+=x);
       return '<tr><td>'+(regimenLargo(g)||'(sin dato)')+'</td>'+vals.map(x=>celda(x)).join('')+'</tr>';
     }).join('');
