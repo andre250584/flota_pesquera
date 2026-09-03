@@ -114,6 +114,10 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
 - **La fila TOTAL lleva `:not(.total)` en la regla de cebreado.** Sin eso, `:nth-child(even)` le gana
   en especificidad al fondo oscuro y la deja en blanco sobre casi blanco — y solo cuando cae en
   posición par, o sea según cuántos regímenes traiga el filtro. Es un error que se esconde solo.
+- «Menor escala por especie» está **comentado** (oculto a pedido, septiembre de 2026), no eliminado.
+  Su marcado en la vista `#reportes` y su bloque en `build('reportes')` van **juntos**: descomentar
+  solo uno rompe la pestaña contra un `getElementById` nulo o deja la tabla vacía. `esMenorEscala()`
+  se conserva por eso, no es código muerto. Lo que describe el resto de este punto es ese cuadro:
 - «Menor escala por especie» cuenta embarcaciones de menor escala que llevan una especie entre sus
   CHD vigentes: Anchoveta (`ANCH`), Bacalao (`BAC`), Anguila (`ANGL`) y Merluza (`MERLZ`). Crece
   agregando una fila más al arreglo de la rama `build('reportes')`.
