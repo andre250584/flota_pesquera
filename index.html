@@ -106,7 +106,11 @@
   .tabla-cruz th:first-child{text-align:left}
   .tabla-cruz td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--linea);font-variant-numeric:tabular-nums;color:#000}
   .tabla-cruz td:first-child{text-align:left;font-weight:700;color:var(--gris-txt)}
-  .tabla-cruz tbody tr:nth-child(even) td{background:var(--fondo)}
+  /* El :not(.total) no es adorno: sin el, el cebreado le gana en especificidad
+     al fondo oscuro del total y lo deja en blanco sobre casi blanco, pero solo
+     cuando la fila cae en posicion par. Con otro numero de regimenes se ve bien
+     y el error se esconde. */
+  .tabla-cruz tbody tr:nth-child(even):not(.total) td{background:var(--fondo)}
   .tabla-cruz td.cero{color:var(--gris-txt2);font-weight:400}
   .tabla-cruz tr.total td{background:var(--gris-txt);color:#fff;font-weight:800;border-bottom:none}
   .chartbox{position:relative;height:230px}
