@@ -24,12 +24,15 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 ## Fuente de datos
 - CSV publicado de Google Sheets (hoja `Matriz`), en la constante `URL_MATRIZ` al inicio del `<script>`.
 - Para cambiar la fuente o sumar la hoja de historial (`Crudo`), edita esa constante / agrega otra; no dupliques la lógica de fetch.
-- La columna de embarcación es `MATRICULA`; una fila = una embarcación. Las filas sin `MATRICULA` se descartan al parsear.
+- La columna de embarcación es `MATRICULA`; una fila = una embarcación. `MATRIZ` conserva todas
+  las filas tal como llegan, incluidas las que no tienen `MATRICULA`, y `CAMPOS` conserva el orden
+  real de los encabezados del CSV. `DATA` descarta las filas sin `MATRICULA` de forma intencional.
 - Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado), `ESPECIE CHD VIGENTES` (columna Z), `ESPECIE CHI VIGENTES` (columna AB), `PMCE NORTE-CENTRO` (columna AD). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
 
 ## Flujo de ejecución
 1. `cargar()` — se llama al final del script y desde el botón «↻ Actualizar». Añade `?t=Date.now()` al URL y usa `cache:'no-store'` para evitar el CSV cacheado; llama a `destroyAll()` antes de recargar.
-2. PapaParse con `header:true` → `DATA` (array global de filas, el CSV crudo).
+2. PapaParse con `header:true` → `MATRIZ` (todas las filas) + `CAMPOS` (orden de columnas) →
+   `DATA` (solo filas con `MATRICULA`).
 3. `poblarPaneles()` arma las casillas de los filtros a partir de `DATA`.
 4. `render()` → `aplicarFiltro()` (→ `VISTA`) + `kpis()` + `build(pestanaActiva())` + `pintarFiltros()`.
    Construye la pestaña visible, **no `'panorama'` fijo**: al filtrar se puede estar en cualquiera.
@@ -72,9 +75,9 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
   cualquier acumulado suma peras con manzanas: se veía preciso y era falso. Tampoco se puede
   normalizar — no hay cómo saber qué fila está en qué unidad. Por eso desapareció la tarjeta KPI
   «Potencia instalada» y con ella `POT_MAX = 20000`, que solo servía para descartar valores
-  imposibles de ese total. El valor crudo **sí** se muestra fila por fila en el listado descargable
-  (es el dato tal como está registrado) y la columna se titula `POTENCIA`, sin unidad. Si algún día
-  la hoja separa la unidad, la tarjeta y el total se pueden revivir.
+  imposibles de ese total. La columna ya no aparece en el PDF del listado, pero el valor crudo **sí**
+  se conserva en las hojas `Detalle`/`Listado` de Excel y en el volcado completo de la matriz. Si
+  algún día la hoja separa la unidad, la tarjeta y el total se pueden revivir.
 - Estado del permiso: todas las variantes de "SUSPENDIDO …" se agrupan como `SUSPENDIDO` (`estadoPermiso()`); el orden fijo en el dona es VIGENTE · SUSPENDIDO · CANCELADO · ANULADO, el mismo que usan las casillas del filtro de estado.
 - Fecha: `FECHA RESOLUCION` se parsea en formato `M/D/AAAA` y `AAAA-MM-DD` (`parseAnio()`); la evolución solo cuenta años entre 1990 y el año actual.
 - Segmentos de eslora: <10 / 10-15 / 15-22.9 / 23-32.5 / >32.5 m; se ignoran esloras nulas o ≤ 0.
@@ -159,6 +162,12 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   352 · 11 · 28 · 1.
 
 ## Reportes descargables (Excel / PDF)
+- El botón «⤓ Excel» de la cabecera es una tercera salida: vuelca `MATRIZ` completa, con todas
+  las columnas en el orden de `CAMPOS` y todas las filas, sin aplicar filtros. Es la salida cruda,
+  frente a los dos reportes curados que leen `DATA` con los criterios de sus paneles. Las columnas
+  numéricas se convierten por la lista blanca `NUM_MATRIZ`; el resto permanece como texto para no
+  romper identificadores como RUC, N.° de serie y transmisor. El volcado no pasa por `r2()`, porque
+  redondear a dos decimales destruiría la precisión de los valores PMCE.
 - Dos paneles al pie de la pestaña Reportes: **«Flota pesquera por régimen y especie»** (el cuadro
   cruzado, hojas `Cuadro` + `Detalle`) y **«Listado de embarcaciones»** (padrón agrupado por régimen
   con subtotales, hojas `Listado` + `Resumen`). Cada uno emite en PDF (`jspdf-autotable`, apaisado) o

@@ -172,6 +172,9 @@
     <div class="meta">
       Fuente: Matriz de flota
       <b id="m-total">—</b>
+      <button class="btn-reload" id="dl-matriz" type="button"
+              title="Descargar la matriz completa: todas las columnas y todas las filas, sin filtros"
+              disabled>⤓ Excel</button>
       <button class="btn-reload" onclick="cargar()">↻ Actualizar</button>
     </div>
   </div>
@@ -358,7 +361,11 @@ Chart.defaults.plugins.legend.labels.boxWidth=12;
 const fmt = n => Math.round(n).toLocaleString('es-PE');
 const num = v => { const x = parseFloat(String(v).replace(/,/g,'').trim()); return isNaN(x)?null:x; };
 let CHARTS={}, DATA=[], BUILT={};
-// DATA es el CSV crudo; VISTA es lo que miran KPIs y graficos.
+// MATRIZ es la hoja tal como llega (incluidas las filas sin MATRICULA, que DATA
+// descarta); CAMPOS es el orden real de columnas que trae el CSV. Solo los usa el
+// volcado completo: KPIs y graficos siguen leyendo VISTA.
+let MATRIZ=[], CAMPOS=[];
+// DATA contiene las filas con MATRICULA; VISTA es lo que miran KPIs y graficos.
 let VISTA=[];
 
 function destroyAll(){ Object.values(CHARTS).forEach(c=>c&&c.destroy()); CHARTS={}; BUILT={}; }
@@ -368,6 +375,7 @@ async function cargar(){
   document.getElementById('loader').style.display='flex';
   document.getElementById('app').style.display='none';
   document.getElementById('errbox').style.display='none';
+  document.getElementById('dl-matriz').disabled=true;
   destroyAll();
   const url = URL_MATRIZ + (URL_MATRIZ.includes('?')?'&':'?') + 't=' + Date.now();
   try {
@@ -375,7 +383,9 @@ async function cargar(){
     if(!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText);
     const text = await resp.text();
     const res = Papa.parse(text, {header:true, skipEmptyLines:true});
-    DATA = res.data.filter(r => (r['MATRICULA']||'').trim() !== '');
+    MATRIZ = res.data;
+    CAMPOS = res.meta.fields || [];
+    DATA = MATRIZ.filter(r => (r['MATRICULA']||'').trim() !== '');
     if(!DATA.length){ mostrarError('El CSV se descargó pero no trae filas. Verifica que la pestaña publicada sea la Matriz.'); return; }
     poblarPaneles();
     poblarReportes();
@@ -690,6 +700,7 @@ function render(){
   kpis();
   build(pestanaActiva());
   pintarFiltros();
+  document.getElementById('dl-matriz').disabled=!MATRIZ.length;
 }
 
 document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
@@ -842,6 +853,29 @@ function saveBook(hojas, nombre){
   });
   XLSX.writeFile(wb,nombre);
 }
+// Volcado de la matriz completa: todas las columnas de la hoja y todas sus filas,
+// sin ningun filtro. Es la salida cruda del tablero, la que sirve de respaldo o
+// para trabajar los datos aparte; los otros dos reportes son los curados.
+// Las columnas numericas van por lista blanca, NO por "parece un numero": si se
+// dejara adivinar, RUC, NRO SERIE MOTOR y TRANSMISOR se convertirian en float y
+// perderian digitos. Todo lo que no esta aqui sale como texto, que es el default
+// seguro tambien para una columna nueva que aparezca en la hoja.
+const NUM_MATRIZ = new Set(['N°','ESLORA','MANGA','PUNTAL','POTENCIA MOTOR','ARQUEO NETO',
+                            'ARQUEO BRUTO','CAPBOD_M3','CAPBOD_TM','PMCE NORTE-CENTRO','PMCE SUR']);
+function descargarMatriz(){
+  if(!MATRIZ.length || !CAMPOS.length) return;
+  const aoa=[CAMPOS].concat(MATRIZ.map(r=>CAMPOS.map(c=>{
+    // Sin r2() a proposito: las columnas PMCE traen 5-6 decimales y redondear
+    // a 2 las destruye.
+    if(NUM_MATRIZ.has(c)){ const x=num(r[c]); return x===null?'':x; }
+    return (r[c]||'').trim();
+  })));
+  const w=[];
+  aoa.forEach(f=>f.forEach((v,i)=>{ w[i]=Math.max(w[i]||0, String(v==null?'':v).length); }));
+  saveBook([{name:'Matriz', aoa,
+    cols:w.map(n=>({wch:Math.min(Math.max(n+2,8),52)}))}],
+    'Matriz_flota_'+fileStamp()+'.xlsx');
+}
 // Los colores del PDF son los mismos de la identidad, en RGB para jsPDF. No hay
 // tinta nueva aqui: rojo de cabecera, gris de texto, fondo de cebreado.
 const C_ROJO=[183,39,39], C_INK=[0,0,0], C_TXT=[94,84,70],
@@ -950,13 +984,13 @@ function rep2Grupos(){
     return {reg:g, filas:fs, cap:fs.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0)};
   });
 }
-const LIST_HEAD=['N°','MATRÍCULA','EMBARCACIÓN','ARMADOR','ESLORA (m)','BODEGA (m³)','POTENCIA',
+const LIST_HEAD=['N°','MATRÍCULA','EMBARCACIÓN','ARMADOR','ESLORA (m)','BODEGA (m³)',
                  'APAREJO','RESOLUCIÓN','FECHA RES.','PERMISO'];
 const numPdf = v => { const x=num(v); return x===null?'—':nf2(x); };
 const txt = v => String(v==null?'':v).trim();
 const filaPdf = (r,i) => [i+1, txt(r['MATRICULA']), txt(r['EMBARCACION']), txt(r['ARMADOR']),
-  numPdf(r['ESLORA']), numPdf(r['CAPBOD_M3']), numPdf(r['POTENCIA MOTOR']),
-  txt(r['APAREJO']).split(';')[0].trim(), txt(r['RESOLUCION'])||'—',
+  numPdf(r['ESLORA']), numPdf(r['CAPBOD_M3']), txt(r['APAREJO']).split(';')[0].trim(),
+  txt(r['RESOLUCION'])||'—',
   fechaCorta(r['FECHA RESOLUCION'])||'—', estadoPermiso(txt(r['PERMISO PESCA']))||'—'];
 
 function rep2Pdf(){
@@ -976,9 +1010,9 @@ function rep2Pdf(){
     headStyles:{fillColor:C_ROJO,textColor:255,fontStyle:'bold',halign:'center',valign:'middle'},
     footStyles:{fillColor:C_TXT,textColor:255,fontStyle:'bold'},
     alternateRowStyles:{fillColor:C_ALT},
-    columnStyles:{0:{halign:'right',cellWidth:22},1:{cellWidth:62},2:{cellWidth:104},3:{cellWidth:152},
-                  4:{halign:'right',cellWidth:44},5:{halign:'right',cellWidth:50},6:{halign:'right',cellWidth:52},
-                  7:{cellWidth:74},9:{halign:'center',cellWidth:50},10:{halign:'center',cellWidth:54}},
+    columnStyles:{0:{halign:'right',cellWidth:22},1:{cellWidth:62},2:{cellWidth:104},3:{cellWidth:180},
+                  4:{halign:'right',cellWidth:44},5:{halign:'right',cellWidth:50},
+                  6:{cellWidth:74},8:{halign:'center',cellWidth:50},9:{halign:'center',cellWidth:54}},
     didDrawPage:cabecera
   };
   grupos.forEach((g,i)=>{
@@ -992,7 +1026,7 @@ function rep2Pdf(){
       body:g.filas.map(filaPdf),
       foot:[[{content:'SUBTOTAL BODEGA (m³)',colSpan:5,styles:{halign:'right'}},
              {content:nf2(g.cap),styles:{halign:'right'}},
-             {content:'',colSpan:5}]],
+             {content:'',colSpan:4}]],
       showFoot:'lastPage',
       startY: i===0 ? 80 : doc.lastAutoTable.finalY+16
     }));
@@ -1065,6 +1099,7 @@ document.getElementById('q1Clear').addEventListener('click',
   ()=>{ Object.assign(q1,DEF_Q1); poblarReportes(); });
 document.getElementById('q2Clear').addEventListener('click',
   ()=>{ Object.assign(q2,DEF_Q2); poblarReportes(); });
+document.getElementById('dl-matriz').addEventListener('click', descargarMatriz);
 
 cargar();
 </script>
