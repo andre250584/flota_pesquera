@@ -52,7 +52,7 @@
   /* KPIs */
   /* Las tarjetas montan sobre la cabecera a proposito. Sin position/z-index las
      tapa el rojo: header esta posicionado y se pinta despues que un bloque normal. */
-  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin:-24px 0 22px;position:relative;z-index:1}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:-24px 0 22px;position:relative;z-index:1}
   .kpi{background:var(--panel);border-radius:10px;padding:16px 16px 14px;box-shadow:0 6px 18px rgba(94,84,70,.10);border-top:4px solid var(--rojo)}
   .kpi .lab{font-size:.7rem;color:var(--gris-txt2);font-weight:600;text-transform:none}
   .kpi .val{font-size:1.55rem;font-weight:800;margin-top:6px;line-height:1;color:#000000}
@@ -61,7 +61,6 @@
   /* Cada KPI conserva en el borde el color de lo que mide, el mismo que usa su grafico. */
   .kpi.k-vig{border-top-color:var(--verde)}   .kpi.k-vig .foot b{color:var(--verde)}
   .kpi.k-cap{border-top-color:var(--teal)}
-  .kpi.k-pot{border-top-color:var(--violeta)}
   .kpi.k-nov{border-top-color:var(--ambar)}
 
   /* Tabs */
@@ -192,7 +191,6 @@
       <div class="kpi"><div class="lab">Embarcaciones</div><div class="val" id="k-total">—</div><div class="foot" id="k-armadores">—</div></div>
       <div class="kpi k-vig"><div class="lab">Permiso vigente</div><div class="val" id="k-vig">—</div><div class="foot" id="k-vigpct">—</div></div>
       <div class="kpi k-cap"><div class="lab">Capacidad de bodega</div><div class="val" id="k-cap">—</div><div class="foot">m³ acumulados</div></div>
-      <div class="kpi k-pot"><div class="lab">Potencia instalada</div><div class="val" id="k-pot">—</div><div class="foot">HP (motores)</div></div>
       <div class="kpi k-nov"><div class="lab">No vigente</div><div class="val" id="k-novig">—</div><div class="foot">cancel. / susp. / anul.</div></div>
     </section>
 
@@ -313,7 +311,12 @@
 <script>
 // ====== CONFIG ======
 const URL_MATRIZ = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSStG4sjc0ep7mkK5-n2gsGMTKkWxVXjEtsyze0Z1Yx3Hn5P1lzNVHlsQdhMvMp6nFR9jrwYiziNSgb/pub?gid=1147773874&single=true&output=csv";
-const POT_MAX = 20000;
+// No se suma POTENCIA MOTOR en ningun lado. La hoja mezcla HP y kW en esa unica
+// columna y no trae ninguna marca de unidad, asi que un acumulado suma peras con
+// manzanas: la cifra se veia precisa y era falsa. Tampoco se puede convertir, no
+// hay como saber que fila esta en que unidad. El valor crudo si se muestra fila
+// por fila en el listado (es el dato tal como esta registrado); lo que no existe
+// es ningun total. Si algun dia la hoja separa la unidad, esto se puede revivir.
 
 // ====== PALETA PRODUCE (manual de identidad) ======
 const ROJO='#B72727', ROJO_OSC='#891313', TXT='#5E5446';
@@ -594,7 +597,6 @@ function kpis(){
   const estados=conteo('PERMISO PESCA', estadoPermiso);
   const vig=estados['VIGENTE']||0;
   const capTot=VISTA.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0);
-  const potTot=VISTA.reduce((s,r)=>{const p=num(r['POTENCIA MOTOR']); return s+((p&&p>0&&p<POT_MAX)?p:0);},0);
   const armadores=new Set(VISTA.map(r=>(r['ARMADOR']||'').trim()).filter(Boolean)).size;
   document.getElementById('k-total').textContent=fmt(total);
   document.getElementById('m-total').textContent=fmt(total)+' embarcaciones';
@@ -602,7 +604,6 @@ function kpis(){
   document.getElementById('k-vig').textContent=fmt(vig);
   document.getElementById('k-vigpct').innerHTML='<b>'+Math.round(vig/total*100)+'%</b> de la flota';
   document.getElementById('k-cap').textContent=fmt(capTot);
-  document.getElementById('k-pot').textContent=fmt(potTot);
   document.getElementById('k-novig').textContent=fmt(total-vig);
 }
 
@@ -944,15 +945,12 @@ function rep2Grupos(){
   return regimenesDe(filas).map(g=>{
     const fs=filas.filter(r=>(r['REGIMEN']||'').trim()===g)
                   .sort((a,b)=>(a['MATRICULA']||'').localeCompare(b['MATRICULA']||''));
-    return {reg:g, filas:fs,
-      cap:fs.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0),
-      // POT_MAX: las potencias imposibles no entran al subtotal, igual que en
-      // kpis(). La fila si aparece, con su valor crudo: el listado es un padron
-      // y no puede esconder una embarcacion por un error de dato en una columna.
-      pot:fs.reduce((s,r)=>{const p=num(r['POTENCIA MOTOR']); return s+((p&&p>0&&p<POT_MAX)?p:0);},0)};
+    // Solo se acumula la bodega. La potencia no se suma: ver la nota de
+    // POTENCIA MOTOR al inicio del script.
+    return {reg:g, filas:fs, cap:fs.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0)};
   });
 }
-const LIST_HEAD=['N°','MATRÍCULA','EMBARCACIÓN','ARMADOR','ESLORA (m)','BODEGA (m³)','POTENCIA (HP)',
+const LIST_HEAD=['N°','MATRÍCULA','EMBARCACIÓN','ARMADOR','ESLORA (m)','BODEGA (m³)','POTENCIA',
                  'APAREJO','RESOLUCIÓN','FECHA RES.','PERMISO'];
 const numPdf = v => { const x=num(v); return x===null?'—':nf2(x); };
 const txt = v => String(v==null?'':v).trim();
@@ -992,20 +990,18 @@ function rep2Pdf(){
           styles:{fillColor:C_ALT,textColor:C_ROJO,halign:'left',fontStyle:'bold',fontSize:8,cellPadding:5}}],
         LIST_HEAD],
       body:g.filas.map(filaPdf),
-      foot:[[{content:'SUBTOTAL',colSpan:5,styles:{halign:'right'}},
+      foot:[[{content:'SUBTOTAL BODEGA (m³)',colSpan:5,styles:{halign:'right'}},
              {content:nf2(g.cap),styles:{halign:'right'}},
-             {content:nf2(g.pot),styles:{halign:'right'}},
-             {content:'',colSpan:4}]],
+             {content:'',colSpan:5}]],
       showFoot:'lastPage',
       startY: i===0 ? 80 : doc.lastAutoTable.finalY+16
     }));
   });
   const tN=grupos.reduce((s,g)=>s+g.filas.length,0),
-        tCap=grupos.reduce((s,g)=>s+g.cap,0),
-        tPot=grupos.reduce((s,g)=>s+g.pot,0);
+        tCap=grupos.reduce((s,g)=>s+g.cap,0);
   doc.autoTable({
     head:[[{content:'RESUMEN DE LA CONSULTA',colSpan:2,styles:{halign:'left'}}]],
-    body:[['Embarcaciones',fmt(tN)],['Capacidad de bodega (m³)',nf2(tCap)],['Potencia instalada (HP)',nf2(tPot)]],
+    body:[['Embarcaciones',fmt(tN)],['Capacidad de bodega (m³)',nf2(tCap)]],
     startY:doc.lastAutoTable.finalY+22, margin:{top:80,left:24,right:24,bottom:42}, tableWidth:300,
     styles:{font:'helvetica',fontSize:7.5,cellPadding:4,textColor:C_INK,lineColor:C_LINEA,lineWidth:.4},
     headStyles:{fillColor:C_ROJO,textColor:255,fontStyle:'bold'},
@@ -1018,7 +1014,7 @@ function rep2Pdf(){
 function rep2Xlsx(){
   const grupos=rep2Grupos(); if(!grupos.length) return;
   const NC=DET_COLS.length, ancho=r=>({s:{r:r,c:0},e:{r:r,c:NC-1}});
-  const iCap=DET_COLS.indexOf('CAPBOD_M3'), iPot=DET_COLS.indexOf('POTENCIA MOTOR');
+  const iCap=DET_COLS.indexOf('CAPBOD_M3');
   const aoa=[['LISTADO DE EMBARCACIONES CON PERMISO DE PESCA'],
              ['Criterios: '+repDesc(q2)],
              ['Fecha de emisión: '+stamp()],
@@ -1029,27 +1025,26 @@ function rep2Xlsx(){
     aoa.push([(regimenLargo(g.reg)||'(sin régimen)')+'   ·   '+fmt(g.filas.length)+' embarcaciones']);
     detalleAoa(g.filas).forEach(f=>aoa.push(f));
     const sub=new Array(NC).fill('');
-    sub[0]='SUBTOTAL'; sub[iCap]=r2(g.cap); sub[iPot]=r2(g.pot);
+    sub[0]='SUBTOTAL BODEGA (m³)'; sub[iCap]=r2(g.cap);
     aoa.push(sub); aoa.push([]);
   });
   const filas=grupos.reduce((a,g)=>a.concat(g.filas),[]);
   const tot=new Array(NC).fill('');
-  tot[0]='TOTAL GENERAL';
+  tot[0]='TOTAL GENERAL BODEGA (m³)';
   tot[iCap]=r2(grupos.reduce((s,g)=>s+g.cap,0));
-  tot[iPot]=r2(grupos.reduce((s,g)=>s+g.pot,0));
   aoa.push(tot);
 
   const res=[['RESUMEN DE LA CONSULTA'],['Criterios: '+repDesc(q2)],['Fecha de emisión: '+stamp()],[],
-             ['POR RÉGIMEN','EMBARCACIONES','BODEGA (m³)','POTENCIA (HP)']];
-  grupos.forEach(g=>res.push([regimenLargo(g.reg)||'(sin régimen)',g.filas.length,r2(g.cap),r2(g.pot)]));
-  res.push(['TOTAL',filas.length,r2(grupos.reduce((s,g)=>s+g.cap,0)),r2(grupos.reduce((s,g)=>s+g.pot,0))]);
+             ['POR RÉGIMEN','EMBARCACIONES','BODEGA (m³)']];
+  grupos.forEach(g=>res.push([regimenLargo(g.reg)||'(sin régimen)',g.filas.length,r2(g.cap)]));
+  res.push(['TOTAL',filas.length,r2(grupos.reduce((s,g)=>s+g.cap,0))]);
   res.push([]); res.push(['POR ESPECIE','EMBARCACIONES']);
   COLS_ESP.forEach(c=>res.push([c[0],conEspecie(filas,c[2],c[1],c[3])]));
   res.push([]); res.push([NOTA_CHI]);
 
   saveBook([
     {name:'Listado',aoa:aoa,merges:merges,cols:DET_ANCHOS},
-    {name:'Resumen',aoa:res,cols:[{wch:40},{wch:16},{wch:14},{wch:14}]}
+    {name:'Resumen',aoa:res,cols:[{wch:40},{wch:16},{wch:14}]}
   ],'Consulta_embarcaciones_'+fileStamp()+'.xlsx');
 }
 

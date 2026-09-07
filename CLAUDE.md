@@ -67,7 +67,14 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
   bodega por régimen» muestran solo las barras seleccionadas. No es un defecto.
 
 ## Reglas de negocio ya implementadas (no las rompas)
-- `POT_MAX = 20000`: potencias por encima (o ≤ 0) se tratan como error de dato y se excluyen del total de HP.
+- **`POTENCIA MOTOR` no se suma en ningún lado, y no es un olvido** (decidido en septiembre de 2026).
+  La hoja mezcla HP y kW en esa única columna y no trae marca de unidad en ninguna parte, así que
+  cualquier acumulado suma peras con manzanas: se veía preciso y era falso. Tampoco se puede
+  normalizar — no hay cómo saber qué fila está en qué unidad. Por eso desapareció la tarjeta KPI
+  «Potencia instalada» y con ella `POT_MAX = 20000`, que solo servía para descartar valores
+  imposibles de ese total. El valor crudo **sí** se muestra fila por fila en el listado descargable
+  (es el dato tal como está registrado) y la columna se titula `POTENCIA`, sin unidad. Si algún día
+  la hoja separa la unidad, la tarjeta y el total se pueden revivir.
 - Estado del permiso: todas las variantes de "SUSPENDIDO …" se agrupan como `SUSPENDIDO` (`estadoPermiso()`); el orden fijo en el dona es VIGENTE · SUSPENDIDO · CANCELADO · ANULADO, el mismo que usan las casillas del filtro de estado.
 - Fecha: `FECHA RESOLUCION` se parsea en formato `M/D/AAAA` y `AAAA-MM-DD` (`parseAnio()`); la evolución solo cuenta años entre 1990 y el año actual.
 - Segmentos de eslora: <10 / 10-15 / 15-22.9 / 23-32.5 / >32.5 m; se ignoran esloras nulas o ≤ 0.
@@ -99,6 +106,12 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
 - Los colores existen dos veces: variables CSS en `:root` y constantes JS para Chart.js. Tocar ambos.
 - `tintaSobre()` decide blanco o tinta oscura en las etiquetas dentro de la dona según el relleno; no
   poner blanco fijo. Las porciones bajo 3.5% no llevan etiqueta (no cabe, la lee el tooltip).
+
+## Tarjetas KPI
+- Son **cuatro**: Embarcaciones · Permiso vigente · Capacidad de bodega · No vigente. Eran cinco
+  hasta septiembre de 2026, cuando se retiró «Potencia instalada» por el problema de unidades
+  descrito arriba. La rejilla `.kpis` va en `repeat(4,1fr)`; si se agrega o quita una tarjeta hay
+  que mover ese número o quedan huecos.
 
 ## Estructura del tablero
 - Pestañas: **Panorama · Evolución · Reportes**. **No hay mapa** (decisión tomada; no agregar uno).
@@ -166,9 +179,8 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   propósito: es un identificador, no una cantidad. En el PDF sí se formatean con `fmt()`/`nf2()`.
 - `fechaCorta()` pasa `M/D/AAAA` a `D/M/AAAA` para los archivos. `parseAnio()` reconoce los mismos
   dos formatos pero solo devuelve el año, así que no sirve aquí.
-- En el listado, la potencia respeta `POT_MAX` **al sumar** el subtotal (igual que `kpis()`), pero la
-  fila aparece con su valor crudo: el padrón no puede esconder una embarcación por un error de dato
-  en una columna.
+- Los subtotales del listado son **solo de bodega** (`SUBTOTAL BODEGA (m³)`), nunca de potencia: ver
+  la regla de `POTENCIA MOTOR` más arriba.
 - Los colores del PDF son los mismos de la identidad, en RGB para jsPDF (`C_ROJO`, `C_TXT`, `C_ALT`…).
   No hay tinta nueva; los ceros salen en gris, como la clase `.cero` de la tabla en pantalla.
 - **No se agregaron botones de exportar al cuadro de pantalla**: tendría los filtros globales como
