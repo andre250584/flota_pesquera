@@ -10,6 +10,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<!-- Exportacion de los reportes: hoja de calculo y PDF con tablas. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <style>
   :root{
     --rojo:#B72727; --rojo-med:#C64646; --rojo-cl:#E09494; --rojo-osc:#891313; --rojo-osc2:#9B1C1C;
@@ -113,6 +117,28 @@
   .tabla-cruz tbody tr:nth-child(even):not(.total) td{background:var(--fondo)}
   .tabla-cruz td.cero{color:var(--gris-txt2);font-weight:400}
   .tabla-cruz tr.total td{background:var(--gris-txt);color:#fff;font-weight:800;border-bottom:none}
+
+  /* Panel de reportes. Es cromo de interfaz, no dato: toma el rojo de identidad
+     igual que las pestanas y la barra de filtros; la paleta de graficos no
+     interviene aqui. */
+  .rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 14px;margin:14px 0 16px}
+  .rfld{display:flex;flex-direction:column;gap:5px}
+  .rfld label{font-size:.66rem;font-weight:700;color:var(--gris-txt2);text-transform:uppercase;letter-spacing:.4px}
+  .rfld select{appearance:none;background:var(--panel);border:1px solid var(--linea);color:var(--gris-txt);
+    border-radius:8px;padding:9px 30px 9px 11px;font-family:inherit;font-size:.79rem;font-weight:500;cursor:pointer;
+    background-image:linear-gradient(45deg,transparent 50%,var(--gris-txt2) 50%),linear-gradient(135deg,var(--gris-txt2) 50%,transparent 50%);
+    background-position:calc(100% - 16px) 51%,calc(100% - 11px) 51%;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
+  .rfld select:focus{outline:2px solid rgba(183,39,39,.45);outline-offset:1px;border-color:var(--rojo)}
+  .rchk{display:flex;align-items:center;gap:7px;align-self:end;padding-bottom:9px;font-size:.76rem;font-weight:600;color:var(--gris-txt);cursor:pointer;user-select:none}
+  .rchk input{accent-color:var(--rojo);cursor:pointer}
+  .ract{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-top:1px solid var(--linea);padding-top:14px}
+  .rbtn{border:0;background:var(--rojo);color:#fff;border-radius:8px;padding:10px 20px;font-family:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+  .rbtn:hover{background:var(--rojo-osc)}
+  .rbtn:disabled{opacity:.5;cursor:not-allowed}
+  .rclear{border:1px solid var(--linea);background:none;color:var(--gris-txt2);border-radius:8px;padding:10px 15px;font-family:inherit;font-size:.76rem;font-weight:600;cursor:pointer}
+  .rcount{font-size:.75rem;color:var(--gris-txt2);font-weight:500}
+  .rcount b{color:var(--gris-txt);font-weight:700;font-variant-numeric:tabular-nums}
+  .rcount.cero b{color:var(--rojo)}
   .chartbox{position:relative;height:230px}
   .chartbox.tall{height:320px}
   .view{display:none}
@@ -238,6 +264,46 @@
         </div>
       </div>
       -->
+
+      <div class="card" style="margin-bottom:16px">
+        <h3>Flota pesquera por régimen y especie</h3>
+        <div class="cap">El mismo cuadro cruzado de arriba, acotado y listo para descargar.
+          Estos selectores son independientes de la barra de filtros superior.</div>
+        <div class="rgrid">
+          <div class="rfld"><label for="q1Reg">Régimen</label><select id="q1Reg"></select></div>
+          <div class="rfld"><label for="q1Esp">Especie</label><select id="q1Esp"></select></div>
+          <div class="rfld"><label for="q1Est">Estado del permiso</label><select id="q1Est"></select></div>
+          <div class="rfld"><label for="q1Fmt">Formato</label><select id="q1Fmt">
+            <option value="pdf">PDF</option><option value="xlsx">Excel</option></select></div>
+          <label class="rchk" title="Quita del reporte las embarcaciones con INC. DEF = SI">
+            <input type="checkbox" id="q1Inc" checked> Excluir INC. DEF</label>
+        </div>
+        <div class="ract">
+          <button class="rbtn" id="q1Go" type="button">Generar reporte</button>
+          <button class="rclear" id="q1Clear" type="button">Limpiar</button>
+          <span class="rcount" id="q1Count"></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Listado de embarcaciones</h3>
+        <div class="cap">Detalle que sustenta las cifras del cuadro, agrupado por régimen y con subtotales.</div>
+        <div class="rgrid">
+          <div class="rfld"><label for="q2Reg">Régimen</label><select id="q2Reg"></select></div>
+          <div class="rfld"><label for="q2Esp">Especie</label><select id="q2Esp"></select></div>
+          <div class="rfld"><label for="q2Est">Estado del permiso</label><select id="q2Est"></select></div>
+          <div class="rfld"><label for="q2Apar">Aparejo principal</label><select id="q2Apar"></select></div>
+          <div class="rfld"><label for="q2Fmt">Formato</label><select id="q2Fmt">
+            <option value="pdf">PDF</option><option value="xlsx">Excel</option></select></div>
+          <label class="rchk" title="Quita del reporte las embarcaciones con INC. DEF = SI">
+            <input type="checkbox" id="q2Inc" checked> Excluir INC. DEF</label>
+        </div>
+        <div class="ract">
+          <button class="rbtn" id="q2Go" type="button">Generar reporte</button>
+          <button class="rclear" id="q2Clear" type="button">Limpiar</button>
+          <span class="rcount" id="q2Count"></span>
+        </div>
+      </div>
     </div>
 
     <div class="foot-src">Ministerio de la Producción · Datos en vivo desde Google Sheets (CSV publicado)</div>
@@ -309,6 +375,7 @@ async function cargar(){
     DATA = res.data.filter(r => (r['MATRICULA']||'').trim() !== '');
     if(!DATA.length){ mostrarError('El CSV se descargó pero no trae filas. Verifica que la pestaña publicada sea la Matriz.'); return; }
     poblarPaneles();
+    poblarReportes();
     render();
   } catch(err){
     let base = err.message || String(err);
@@ -476,6 +543,40 @@ const conDato = campo => r => (r[campo]||'').trim()!=='';
 function conEspecie(filas, cod, col, extra){
   return filas.filter(r => tieneEspecie(r, col||CHD, cod) && (!extra || extra(r))).length;
 }
+// Columnas de especie del cuadro cruzado. Las comparten la tabla en pantalla y
+// los dos reportes exportables: tocar una columna aqui cambia los tres destinos
+// a la vez, y por eso viven fuera de build().
+// "Anch. CHI" no es solo la especie: la embarcacion ademas tiene que tener PMCE
+// NORTE-CENTRO asignado (columna AD con dato), condicion que viaja igual al
+// Excel y al PDF. Ojo con esa columna: la cuota se reasigna por temporada, asi
+// que no solo cambia cuantas filas la tienen sino cuales. No anotar aqui una
+// cifra esperada: envejece en dias.
+const COLS_ESP=[['Anch. CHI',CHI,'ANCH',conDato(PMCE_NC)],['Anch. CHD',CHD,'ANCH'],['Atún',CHD,'ATU'],
+                ['Perico',CHD,'PER'],['Bacalao',CHD,'BAC'],['Pota',CHD,'POT'],['Merluza',CHD,'MERLZ'],
+                ['Anguila',CHD,'ANGL']];
+// Orden de lectura del reporte oficial; cualquier regimen fuera de la lista se
+// agrega al final en vez de desaparecer del cuadro.
+const ORDEN_REG=['DECRETO LEY N° 25977','LEY N° 26920','MENOR ESCALA',
+                 'MENOR ESCALA (ANCHOVETA)','MENOR ESCALA (ANCHOVETA) - ARTESANAL'];
+function regimenesDe(filas){
+  const presentes=[...new Set(filas.map(r=>(r['REGIMEN']||'').trim()))];
+  return [...ORDEN_REG.filter(g=>presentes.includes(g)),
+          ...presentes.filter(g=>!ORDEN_REG.includes(g)).sort()];
+}
+// Calculo puro del cuadro cruzado, sin tocar el DOM. Lo usan la tabla en
+// pantalla (sobre VISTA) y los exportadores (sobre su propia consulta), asi que
+// cuadro visible y cuadro descargado no pueden discrepar.
+function matrizCruz(filas, cols){
+  const regs=regimenesDe(filas);
+  const tot=new Array(cols.length+1).fill(0);
+  const filasVals=regs.map(g=>{
+    const fs=filas.filter(r=>(r['REGIMEN']||'').trim()===g);
+    const vals=[fs.length, ...cols.map(([,col,cod,extra])=>conEspecie(fs,cod,col,extra))];
+    vals.forEach((x,i)=>tot[i]+=x);
+    return vals;
+  });
+  return {regs, filasVals, tot};
+}
 // Nombres de regimen para el cuadro ancho, donde si entran completos.
 function regimenLargo(g){
   return g.replace('DECRETO LEY N°','D.L. N°').replace(/^LEY N°/,'Ley N°')
@@ -548,32 +649,17 @@ function build(v){
   }
   if(v==='reportes'){
     // --- Cuadro cruzado: regimen x especie ---
-    // Anch. CHI no es solo la especie: la embarcacion ademas tiene que tener
-    // PMCE NORTE-CENTRO asignado (columna AD con dato). Ojo con esa columna: la
-    // cuota se reasigna por temporada, asi que no solo cambia cuantas filas la
-    // tienen sino cuales. No anotar aqui una cifra esperada: envejece en dias.
-    const COLS=[['Anch. CHI',CHI,'ANCH',conDato(PMCE_NC)],['Anch. CHD',CHD,'ANCH'],['Atún',CHD,'ATU'],
-                ['Perico',CHD,'PER'],['Bacalao',CHD,'BAC'],['Pota',CHD,'POT'],['Merluza',CHD,'MERLZ'],
-                ['Anguila',CHD,'ANGL']];
-    // Orden de lectura del reporte oficial; cualquier regimen fuera de la lista
-    // se agrega al final en vez de desaparecer del cuadro.
-    const ORDEN_REG=['DECRETO LEY N° 25977','LEY N° 26920','MENOR ESCALA',
-                     'MENOR ESCALA (ANCHOVETA)','MENOR ESCALA (ANCHOVETA) - ARTESANAL'];
-    const presentes=[...new Set(VISTA.map(r=>(r['REGIMEN']||'').trim()))];
-    const regs=[...ORDEN_REG.filter(g=>presentes.includes(g)),
-                ...presentes.filter(g=>!ORDEN_REG.includes(g)).sort()];
-    const celda=(n,cls)=>'<td'+(n===0?' class="cero"':(cls?' class="'+cls+'"':''))+'>'+fmt(n)+'</td>';
-    const tot=new Array(COLS.length+1).fill(0);
-    const cuerpo=regs.map(g=>{
-      const fs=VISTA.filter(r=>(r['REGIMEN']||'').trim()===g);
-      const vals=[fs.length, ...COLS.map(([,col,cod,extra])=>conEspecie(fs,cod,col,extra))];
-      vals.forEach((x,i)=>tot[i]+=x);
-      return '<tr><td>'+(regimenLargo(g)||'(sin dato)')+'</td>'+vals.map(x=>celda(x)).join('')+'</tr>';
-    }).join('');
+    // Lee VISTA, como el resto del tablero: responde a la barra de filtros. Las
+    // cifras salen de matrizCruz(), la misma funcion que alimenta los reportes
+    // descargables, asi que no pueden discrepar.
+    const {regs,filasVals,tot}=matrizCruz(VISTA,COLS_ESP);
+    const celda=n=>'<td'+(n===0?' class="cero"':'')+'>'+fmt(n)+'</td>';
     document.getElementById('t-cruz-h').innerHTML =
-      '<tr><th>Régimen</th><th>Flota general</th>'+COLS.map(c=>'<th>'+c[0]+'</th>').join('')+'</tr>';
-    document.getElementById('t-cruz-b').innerHTML = cuerpo +
-      '<tr class="total"><td>TOTAL</td>'+tot.map(x=>'<td>'+fmt(x)+'</td>').join('')+'</tr>';
+      '<tr><th>Régimen</th><th>Flota general</th>'+COLS_ESP.map(c=>'<th>'+c[0]+'</th>').join('')+'</tr>';
+    document.getElementById('t-cruz-b').innerHTML =
+      regs.map((g,i)=>'<tr><td>'+(regimenLargo(g)||'(sin dato)')+'</td>'
+        +filasVals[i].map(celda).join('')+'</tr>').join('')
+      + '<tr class="total"><td>TOTAL</td>'+tot.map(x=>'<td>'+fmt(x)+'</td>').join('')+'</tr>';
 
     // --- Cuadro de menor escala por especie: oculto a pedido ---
     // Va junto con su marcado, comentado en la vista #reportes. Si se
@@ -634,6 +720,356 @@ document.addEventListener('click', e=>{
   if(!document.querySelector('.filtro').contains(e.target)) abrirPanel(null);
 });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') abrirPanel(null); });
+
+// ====== REPORTES DESCARGABLES ======
+// Los dos paneles leen DATA, no VISTA: son la unica excepcion a la regla del
+// tablero, y es deliberada. Se decidio asi para que el archivo emitido sea
+// exactamente lo que muestra el panel y no dependa del estado de la barra de
+// filtros de arriba, que desde aqui no se ve.
+// El estado es un desplegable de una sola opcion, no casillas. Se compara con
+// estadoPermiso(), nunca con el valor crudo, o las variantes de "SUSPENDIDO ..."
+// se caen de su propia opcion. El defecto (vigente + suspendido, sin INC. DEF)
+// es el recorte que reproduce el reporte oficial en papel.
+const ESTADOS_REP=[['OPERATIVA','Operativa (vigente + suspendido)',['VIGENTE','SUSPENDIDO']],
+                   ['VIGENTE','Solo vigente',['VIGENTE']],
+                   ['SUSPENDIDO','Solo suspendido',['SUSPENDIDO']],
+                   ['CANCELADO','Solo cancelado',['CANCELADO']],
+                   ['ANULADO','Solo anulado',['ANULADO']],
+                   ['TODOS','Todos los estados',null]];
+const filaEstado = k => ESTADOS_REP.find(e=>e[0]===k) || ESTADOS_REP[0];
+const DEF_Q1={reg:'',esp:'',est:'OPERATIVA',inc:true};
+const DEF_Q2={reg:'',esp:'',est:'OPERATIVA',apar:'',inc:true};
+const q1=Object.assign({},DEF_Q1), q2=Object.assign({},DEF_Q2);
+
+// Recorta DATA con los criterios del panel; devuelve un arreglo nuevo y no toca
+// VISTA ni DATA.
+function repFiltrar(q){
+  const est=filaEstado(q.est)[2];
+  const esp=q.esp ? COLS_ESP.find(c=>c[0]===q.esp) : null;
+  return DATA.filter(r =>
+    (!q.inc || !esIncDef(r)) &&
+    (!q.reg || (r['REGIMEN']||'').trim()===q.reg) &&
+    (!est || est.includes(estadoPermiso((r['PERMISO PESCA']||'').trim()))) &&
+    (!q.apar || (r['APAREJO']||'').split(';')[0].trim()===q.apar) &&
+    (!esp || (tieneEspecie(r,esp[1],esp[2]) && (!esp[3] || esp[3](r)))));
+}
+// Con una especie elegida el cuadro sale con "Flota general" y esa sola columna.
+const colsDe = q => q.esp ? COLS_ESP.filter(c=>c[0]===q.esp) : COLS_ESP;
+// Los criterios viajan impresos en el archivo: sin eso, dos reportes distintos
+// se ven identicos una semana despues.
+function repDesc(q){
+  const p=[q.reg ? regimenLargo(q.reg) : 'Todos los regímenes',
+           q.esp || 'Todas las especies del cuadro',
+           filaEstado(q.est)[1]];
+  if(q.apar) p.push('Aparejo: '+q.apar);
+  if(q.inc) p.push('sin INC. DEF');
+  return p.join(' · ');
+}
+
+// ====== PANEL: ARMADO Y CONTEO ======
+const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;')
+                          .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+// Las opciones se arman desde DATA, nunca desde VISTA. Al recargar sobrevive lo
+// elegido solo si su valor sigue existiendo en los datos frescos, igual que
+// hacen las casillas de la barra global.
+function opciones(id, todos, ents, actual){
+  const el=document.getElementById(id);
+  el.innerHTML='<option value="">'+esc(todos)+'</option>'
+    + ents.map(([k,n,lab])=>'<option value="'+esc(k)+'">'+esc(lab)+' ('+fmt(n)+')</option>').join('');
+  el.value = ents.some(e=>e[0]===actual) ? actual : '';
+  return el.value;
+}
+function poblarReportes(){
+  const cuenta=(campo,mapfn)=>{ const m={};
+    DATA.forEach(r=>{ let k=(r[campo]||'').trim(); if(mapfn)k=mapfn(k); if(k!=='')m[k]=(m[k]||0)+1; });
+    return m; };
+  const nreg=cuenta('REGIMEN');
+  const entRegs=regimenesDe(DATA).filter(Boolean).map(g=>[g,nreg[g]||0,regimenLargo(g)]);
+  const entEsp=COLS_ESP.map(c=>[c[0],
+    DATA.filter(r=>tieneEspecie(r,c[1],c[2]) && (!c[3]||c[3](r))).length, c[0]]);
+  const napa=cuenta('APAREJO', v=>v.split(';')[0].trim());
+  const entApa=Object.entries(napa).sort((a,b)=>b[1]-a[1]).map(([k,n])=>[k,n,k]);
+  const selEst=(id,val)=>{ const el=document.getElementById(id);
+    el.innerHTML=ESTADOS_REP.map(e=>'<option value="'+e[0]+'">'+esc(e[1])+'</option>').join('');
+    el.value=val; };
+  q1.reg=opciones('q1Reg','Todos los regímenes',entRegs,q1.reg);
+  q1.esp=opciones('q1Esp','Todas las especies',entEsp,q1.esp);
+  selEst('q1Est',q1.est); document.getElementById('q1Inc').checked=q1.inc;
+  q2.reg=opciones('q2Reg','Todos los regímenes',entRegs,q2.reg);
+  q2.esp=opciones('q2Esp','Todas las especies',entEsp,q2.esp);
+  q2.apar=opciones('q2Apar','Todos los aparejos',entApa,q2.apar);
+  selEst('q2Est',q2.est); document.getElementById('q2Inc').checked=q2.inc;
+  repContar();
+}
+// El boton se apaga con la consulta en cero: mejor eso que emitir un archivo
+// con la cabecera y ninguna fila.
+function repContar(){
+  const f1=repFiltrar(q1), f2=repFiltrar(q2);
+  const c1=document.getElementById('q1Count');
+  c1.innerHTML='<b>'+fmt(f1.length)+'</b> embarcaciones · <b>'+fmt(regimenesDe(f1).length)+'</b> regímenes en el cuadro';
+  c1.classList.toggle('cero', f1.length===0);
+  document.getElementById('q1Go').disabled = f1.length===0;
+  const c2=document.getElementById('q2Count');
+  c2.innerHTML='<b>'+fmt(f2.length)+'</b> embarcaci'+(f2.length===1?'ón':'ones')+' en la consulta';
+  c2.classList.toggle('cero', f2.length===0);
+  document.getElementById('q2Go').disabled = f2.length===0;
+}
+
+// ====== HELPERS DE EXPORTACION ======
+const stamp = () => new Date().toLocaleDateString('es-PE');
+const fileStamp = () => new Date().toISOString().slice(0,10);
+const nf2 = n => (+n||0).toLocaleString('es-PE',{minimumFractionDigits:2,maximumFractionDigits:2});
+// Las sumas acumulan ruido binario (12741.259999999998); la hoja guarda el valor limpio.
+const r2 = n => Math.round((+n||0)*100)/100;
+// La hoja entrega M/D/AAAA (3/30/2015 = 30 de marzo) y el reporte se emite en
+// D/M/AAAA. parseAnio() reconoce los mismos dos formatos pero solo devuelve el ano.
+function fechaCorta(v){
+  const t=String(v||'').trim(); if(!t) return '';
+  let m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return m[3].padStart(2,'0')+'/'+m[2].padStart(2,'0')+'/'+m[1];
+  m=t.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return m[2].padStart(2,'0')+'/'+m[1].padStart(2,'0')+'/'+m[3];
+  return t;
+}
+function saveBook(hojas, nombre){
+  const wb=XLSX.utils.book_new();
+  hojas.forEach(h=>{
+    const ws=XLSX.utils.aoa_to_sheet(h.aoa);
+    if(h.cols) ws['!cols']=h.cols;
+    if(h.merges) ws['!merges']=h.merges;
+    XLSX.utils.book_append_sheet(wb,ws,h.name);
+  });
+  XLSX.writeFile(wb,nombre);
+}
+// Los colores del PDF son los mismos de la identidad, en RGB para jsPDF. No hay
+// tinta nueva aqui: rojo de cabecera, gris de texto, fondo de cebreado.
+const C_ROJO=[183,39,39], C_INK=[0,0,0], C_TXT=[94,84,70],
+      C_GRIS=[171,162,144], C_ALT=[241,239,232], C_LINEA=[228,225,215];
+const pdfNew = orient => new window.jspdf.jsPDF({orientation:orient,unit:'pt',format:'a4'});
+function pdfHead(doc, titulo, sub){
+  const W=doc.internal.pageSize.getWidth();
+  doc.setFont('helvetica','bold').setFontSize(12).setTextColor.apply(doc,C_INK);
+  doc.text(titulo,W/2,46,{align:'center'});
+  doc.setFont('helvetica','normal').setFontSize(8).setTextColor.apply(doc,C_TXT);
+  doc.text('PRODUCE · DGPCHDI',28,28);
+  doc.text('Fecha de impresión: '+stamp(),W-28,28,{align:'right'});
+  if(sub) doc.text(sub,W/2,62,{align:'center',maxWidth:W-90});
+}
+function pdfFoot(doc){
+  const n=doc.internal.getNumberOfPages(),
+        W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  for(let i=1;i<=n;i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal').setFontSize(7.5).setTextColor.apply(doc,C_GRIS);
+    doc.text('Ministerio de la Producción · Registro de embarcaciones con permiso de pesca',28,H-16);
+    doc.text('Página '+i+' de '+n,W-28,H-16,{align:'right'});
+  }
+}
+// Los ceros en gris, igual que la clase .cero de la tabla en pantalla.
+function grisCeros(d){
+  if(d.section==='body' && d.column.index>0 && d.cell.text.join('')==='0')
+    d.cell.styles.textColor=C_GRIS;
+}
+const NOTA_CHI='Anch. CHI cuenta además solo las embarcaciones con PMCE NORTE-CENTRO asignado.';
+
+// Volcado de detalle: las columnas crudas de la hoja, para poder auditar cada
+// cifra del cuadro. Los numeros van como numero, no como texto con formato, o la
+// hoja de calculo no los suma.
+const DET_COLS=['MATRICULA','EMBARCACION','REGIMEN','PERMISO PESCA','ARMADOR','RUC','CASCO','ESLORA',
+                'CAPBOD_M3','POTENCIA MOTOR','APAREJO','RESOLUCION','FECHA RESOLUCION',
+                'ESPECIE CHD VIGENTES','ESPECIE CHI VIGENTES','PMCE NORTE-CENTRO','INC. DEF'];
+const DET_ANCHOS=[{wch:14},{wch:30},{wch:34},{wch:14},{wch:42},{wch:13},{wch:16},{wch:9},{wch:11},
+                  {wch:13},{wch:22},{wch:30},{wch:13},{wch:34},{wch:16},{wch:16},{wch:9}];
+const DET_NUM=new Set(['ESLORA','CAPBOD_M3','POTENCIA MOTOR']);
+const detalleAoa = filas => [DET_COLS].concat(filas.map(r=>DET_COLS.map(c=>{
+  if(c==='FECHA RESOLUCION') return fechaCorta(r[c]);
+  if(DET_NUM.has(c)){ const x=num(r[c]); return x===null?'':r2(x); }
+  return (r[c]||'').trim();
+})));
+
+// ====== REPORTE 1: CUADRO POR REGIMEN Y ESPECIE ======
+function rep1Pdf(){
+  const filas=repFiltrar(q1); if(!filas.length) return;
+  const cols=colsDe(q1);
+  const {regs,filasVals,tot}=matrizCruz(filas,cols);
+  const doc=pdfNew('landscape');
+  doc.autoTable({
+    head:[['Régimen','Flota general'].concat(cols.map(c=>c[0]))],
+    body:regs.map((g,i)=>[regimenLargo(g)||'(sin dato)'].concat(filasVals[i].map(x=>fmt(x)))),
+    foot:[['TOTAL'].concat(tot.map(x=>fmt(x)))],
+    startY:80, margin:{top:80,left:30,right:30,bottom:42},
+    styles:{font:'helvetica',fontSize:8,cellPadding:5,textColor:C_INK,lineColor:C_LINEA,lineWidth:.4,halign:'right'},
+    headStyles:{fillColor:C_ROJO,textColor:255,fontStyle:'bold',halign:'center',valign:'middle'},
+    footStyles:{fillColor:C_TXT,textColor:255,fontStyle:'bold',halign:'right'},
+    alternateRowStyles:{fillColor:C_ALT},
+    columnStyles:{0:{halign:'left',fontStyle:'bold',cellWidth:180,textColor:C_TXT}},
+    didParseCell:d=>{
+      if(d.section==='foot' && d.column.index===0) d.cell.styles.halign='left';
+      grisCeros(d);
+    },
+    didDrawPage:()=>pdfHead(doc,'FLOTA PESQUERA POR RÉGIMEN Y TIPO DE ACCESO',repDesc(q1))
+  });
+  if(cols.some(c=>c[0]==='Anch. CHI')){
+    doc.setFont('helvetica','italic').setFontSize(7.5).setTextColor.apply(doc,C_TXT);
+    doc.text(NOTA_CHI,30,doc.lastAutoTable.finalY+16);
+  }
+  pdfFoot(doc);
+  doc.save('Flota_por_regimen_y_especie_'+fileStamp()+'.pdf');
+}
+function rep1Xlsx(){
+  const filas=repFiltrar(q1); if(!filas.length) return;
+  const cols=colsDe(q1);
+  const {regs,filasVals,tot}=matrizCruz(filas,cols);
+  const NC=cols.length+2, ancho=r=>({s:{r:r,c:0},e:{r:r,c:NC-1}});
+  const aoa=[['FLOTA PESQUERA POR RÉGIMEN Y TIPO DE ACCESO'],
+             ['Criterios: '+repDesc(q1)],
+             ['Fecha de emisión: '+stamp()],
+             [NOTA_CHI],
+             [],
+             ['Régimen','Flota general'].concat(cols.map(c=>c[0]))];
+  regs.forEach((g,i)=>aoa.push([regimenLargo(g)||'(sin dato)'].concat(filasVals[i])));
+  aoa.push(['TOTAL'].concat(tot));
+  saveBook([
+    {name:'Cuadro',aoa:aoa,merges:[0,1,2,3].map(ancho),
+     cols:[{wch:40}].concat(new Array(NC-1).fill({wch:14}))},
+    {name:'Detalle',aoa:detalleAoa(filas),cols:DET_ANCHOS}
+  ],'Flota_por_regimen_y_especie_'+fileStamp()+'.xlsx');
+}
+
+// ====== REPORTE 2: LISTADO DE EMBARCACIONES ======
+// Mismo orden de lectura que el cuadro; los regimenes fuera de ORDEN_REG van al
+// final, no se pierden.
+function rep2Grupos(){
+  const filas=repFiltrar(q2);
+  return regimenesDe(filas).map(g=>{
+    const fs=filas.filter(r=>(r['REGIMEN']||'').trim()===g)
+                  .sort((a,b)=>(a['MATRICULA']||'').localeCompare(b['MATRICULA']||''));
+    return {reg:g, filas:fs,
+      cap:fs.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0),
+      // POT_MAX: las potencias imposibles no entran al subtotal, igual que en
+      // kpis(). La fila si aparece, con su valor crudo: el listado es un padron
+      // y no puede esconder una embarcacion por un error de dato en una columna.
+      pot:fs.reduce((s,r)=>{const p=num(r['POTENCIA MOTOR']); return s+((p&&p>0&&p<POT_MAX)?p:0);},0)};
+  });
+}
+const LIST_HEAD=['N°','MATRÍCULA','EMBARCACIÓN','ARMADOR','ESLORA (m)','BODEGA (m³)','POTENCIA (HP)',
+                 'APAREJO','RESOLUCIÓN','FECHA RES.','PERMISO'];
+const numPdf = v => { const x=num(v); return x===null?'—':nf2(x); };
+const txt = v => String(v==null?'':v).trim();
+const filaPdf = (r,i) => [i+1, txt(r['MATRICULA']), txt(r['EMBARCACION']), txt(r['ARMADOR']),
+  numPdf(r['ESLORA']), numPdf(r['CAPBOD_M3']), numPdf(r['POTENCIA MOTOR']),
+  txt(r['APAREJO']).split(';')[0].trim(), txt(r['RESOLUCION'])||'—',
+  fechaCorta(r['FECHA RESOLUCION'])||'—', estadoPermiso(txt(r['PERMISO PESCA']))||'—'];
+
+function rep2Pdf(){
+  const grupos=rep2Grupos(); if(!grupos.length) return;
+  const doc=pdfNew('landscape');
+  // autoTable dibuja la cabecera una vez por tabla; con una tabla por regimen
+  // habria que repetirla. El Set garantiza una sola por hoja.
+  const hechas=new Set();
+  const cabecera=()=>{
+    const p=doc.internal.getCurrentPageInfo().pageNumber;
+    if(hechas.has(p)) return; hechas.add(p);
+    pdfHead(doc,'LISTADO DE EMBARCACIONES CON PERMISO DE PESCA',repDesc(q2));
+  };
+  const base={
+    margin:{top:80,left:24,right:24,bottom:42},
+    styles:{font:'helvetica',fontSize:6.8,cellPadding:3,textColor:C_INK,lineColor:C_LINEA,lineWidth:.4,overflow:'linebreak'},
+    headStyles:{fillColor:C_ROJO,textColor:255,fontStyle:'bold',halign:'center',valign:'middle'},
+    footStyles:{fillColor:C_TXT,textColor:255,fontStyle:'bold'},
+    alternateRowStyles:{fillColor:C_ALT},
+    columnStyles:{0:{halign:'right',cellWidth:22},1:{cellWidth:62},2:{cellWidth:104},3:{cellWidth:152},
+                  4:{halign:'right',cellWidth:44},5:{halign:'right',cellWidth:50},6:{halign:'right',cellWidth:52},
+                  7:{cellWidth:74},9:{halign:'center',cellWidth:50},10:{halign:'center',cellWidth:54}},
+    didDrawPage:cabecera
+  };
+  grupos.forEach((g,i)=>{
+    doc.autoTable(Object.assign({},base,{
+      head:[
+        [{content:(regimenLargo(g.reg)||'(sin régimen)')+'   ·   '+fmt(g.filas.length)
+                  +' embarcaci'+(g.filas.length===1?'ón':'ones'),
+          colSpan:LIST_HEAD.length,
+          styles:{fillColor:C_ALT,textColor:C_ROJO,halign:'left',fontStyle:'bold',fontSize:8,cellPadding:5}}],
+        LIST_HEAD],
+      body:g.filas.map(filaPdf),
+      foot:[[{content:'SUBTOTAL',colSpan:5,styles:{halign:'right'}},
+             {content:nf2(g.cap),styles:{halign:'right'}},
+             {content:nf2(g.pot),styles:{halign:'right'}},
+             {content:'',colSpan:4}]],
+      showFoot:'lastPage',
+      startY: i===0 ? 80 : doc.lastAutoTable.finalY+16
+    }));
+  });
+  const tN=grupos.reduce((s,g)=>s+g.filas.length,0),
+        tCap=grupos.reduce((s,g)=>s+g.cap,0),
+        tPot=grupos.reduce((s,g)=>s+g.pot,0);
+  doc.autoTable({
+    head:[[{content:'RESUMEN DE LA CONSULTA',colSpan:2,styles:{halign:'left'}}]],
+    body:[['Embarcaciones',fmt(tN)],['Capacidad de bodega (m³)',nf2(tCap)],['Potencia instalada (HP)',nf2(tPot)]],
+    startY:doc.lastAutoTable.finalY+22, margin:{top:80,left:24,right:24,bottom:42}, tableWidth:300,
+    styles:{font:'helvetica',fontSize:7.5,cellPadding:4,textColor:C_INK,lineColor:C_LINEA,lineWidth:.4},
+    headStyles:{fillColor:C_ROJO,textColor:255,fontStyle:'bold'},
+    columnStyles:{1:{halign:'right',fontStyle:'bold'}},
+    didDrawPage:cabecera
+  });
+  pdfFoot(doc);
+  doc.save('Consulta_embarcaciones_'+fileStamp()+'.pdf');
+}
+function rep2Xlsx(){
+  const grupos=rep2Grupos(); if(!grupos.length) return;
+  const NC=DET_COLS.length, ancho=r=>({s:{r:r,c:0},e:{r:r,c:NC-1}});
+  const iCap=DET_COLS.indexOf('CAPBOD_M3'), iPot=DET_COLS.indexOf('POTENCIA MOTOR');
+  const aoa=[['LISTADO DE EMBARCACIONES CON PERMISO DE PESCA'],
+             ['Criterios: '+repDesc(q2)],
+             ['Fecha de emisión: '+stamp()],
+             []];
+  const merges=[0,1,2].map(ancho);
+  grupos.forEach(g=>{
+    merges.push(ancho(aoa.length));
+    aoa.push([(regimenLargo(g.reg)||'(sin régimen)')+'   ·   '+fmt(g.filas.length)+' embarcaciones']);
+    detalleAoa(g.filas).forEach(f=>aoa.push(f));
+    const sub=new Array(NC).fill('');
+    sub[0]='SUBTOTAL'; sub[iCap]=r2(g.cap); sub[iPot]=r2(g.pot);
+    aoa.push(sub); aoa.push([]);
+  });
+  const filas=grupos.reduce((a,g)=>a.concat(g.filas),[]);
+  const tot=new Array(NC).fill('');
+  tot[0]='TOTAL GENERAL';
+  tot[iCap]=r2(grupos.reduce((s,g)=>s+g.cap,0));
+  tot[iPot]=r2(grupos.reduce((s,g)=>s+g.pot,0));
+  aoa.push(tot);
+
+  const res=[['RESUMEN DE LA CONSULTA'],['Criterios: '+repDesc(q2)],['Fecha de emisión: '+stamp()],[],
+             ['POR RÉGIMEN','EMBARCACIONES','BODEGA (m³)','POTENCIA (HP)']];
+  grupos.forEach(g=>res.push([regimenLargo(g.reg)||'(sin régimen)',g.filas.length,r2(g.cap),r2(g.pot)]));
+  res.push(['TOTAL',filas.length,r2(grupos.reduce((s,g)=>s+g.cap,0)),r2(grupos.reduce((s,g)=>s+g.pot,0))]);
+  res.push([]); res.push(['POR ESPECIE','EMBARCACIONES']);
+  COLS_ESP.forEach(c=>res.push([c[0],conEspecie(filas,c[2],c[1],c[3])]));
+  res.push([]); res.push([NOTA_CHI]);
+
+  saveBook([
+    {name:'Listado',aoa:aoa,merges:merges,cols:DET_ANCHOS},
+    {name:'Resumen',aoa:res,cols:[{wch:40},{wch:16},{wch:14},{wch:14}]}
+  ],'Consulta_embarcaciones_'+fileStamp()+'.xlsx');
+}
+
+// ====== PANEL: EVENTOS ======
+[['q1Reg','reg',q1],['q1Esp','esp',q1],['q1Est','est',q1],
+ ['q2Reg','reg',q2],['q2Esp','esp',q2],['q2Est','est',q2],['q2Apar','apar',q2]]
+.forEach(([id,campo,q])=>document.getElementById(id)
+  .addEventListener('change', e=>{ q[campo]=e.target.value; repContar(); }));
+[['q1Inc',q1],['q2Inc',q2]].forEach(([id,q])=>document.getElementById(id)
+  .addEventListener('change', e=>{ q.inc=e.target.checked; repContar(); }));
+document.getElementById('q1Go').addEventListener('click',
+  ()=>document.getElementById('q1Fmt').value==='xlsx' ? rep1Xlsx() : rep1Pdf());
+document.getElementById('q2Go').addEventListener('click',
+  ()=>document.getElementById('q2Fmt').value==='xlsx' ? rep2Xlsx() : rep2Pdf());
+// "Limpiar" devuelve el panel a como carga (flota operativa, sin INC. DEF), no a
+// "sin criterio": ese defecto es el que reproduce el reporte oficial.
+document.getElementById('q1Clear').addEventListener('click',
+  ()=>{ Object.assign(q1,DEF_Q1); poblarReportes(); });
+document.getElementById('q2Clear').addEventListener('click',
+  ()=>{ Object.assign(q2,DEF_Q2); poblarReportes(); });
 
 cargar();
 </script>
