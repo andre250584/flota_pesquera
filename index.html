@@ -120,6 +120,7 @@
   /* Panel de reportes. Es cromo de interfaz, no dato: toma el rojo de identidad
      igual que las pestanas y la barra de filtros; la paleta de graficos no
      interviene aqui. */
+  .card-act{display:flex;justify-content:flex-end;margin-top:12px}
   .rgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px 14px;margin:14px 0 16px}
   .rfld{display:flex;flex-direction:column;gap:5px}
   .rfld label{font-size:.66rem;font-weight:700;color:var(--gris-txt2);text-transform:uppercase;letter-spacing:.4px}
@@ -253,6 +254,9 @@
           <thead id="t-cruz-h"></thead><tbody id="t-cruz-b"></tbody>
         </table></div>
         <div class="cap" style="margin:10px 0 2px">Anch. CHI cuenta además solo las que tienen PMCE NORTE-CENTRO asignado.</div>
+        <div class="card-act">
+          <button class="rbtn" id="cuadroPdf" type="button">⤓ Descargar en PDF</button>
+        </div>
       </div>
       <!-- Cuadro «Menor escala por especie»: oculto a pedido, se puede volver a
            usar. Para reactivarlo hay que descomentar TAMBIEN su bloque en la rama
@@ -265,26 +269,6 @@
         </div>
       </div>
       -->
-
-      <div class="card" style="margin-bottom:16px">
-        <h3>Flota pesquera por régimen y especie</h3>
-        <div class="cap">El mismo cuadro cruzado de arriba, acotado y listo para descargar.
-          Estos selectores son independientes de la barra de filtros superior.</div>
-        <div class="rgrid">
-          <div class="rfld"><label for="q1Reg">Régimen</label><select id="q1Reg"></select></div>
-          <div class="rfld"><label for="q1Esp">Especie</label><select id="q1Esp"></select></div>
-          <div class="rfld"><label for="q1Est">Estado del permiso</label><select id="q1Est"></select></div>
-          <div class="rfld"><label for="q1Fmt">Formato</label><select id="q1Fmt">
-            <option value="pdf">PDF</option><option value="xlsx">Excel</option></select></div>
-          <label class="rchk" title="Quita del reporte las embarcaciones con INC. DEF = SI">
-            <input type="checkbox" id="q1Inc" checked> Excluir INC. DEF</label>
-        </div>
-        <div class="ract">
-          <button class="rbtn" id="q1Go" type="button">Generar reporte</button>
-          <button class="rclear" id="q1Clear" type="button">Limpiar</button>
-          <span class="rcount" id="q1Count"></span>
-        </div>
-      </div>
 
       <div class="card">
         <h3>Listado de embarcaciones</h3>
@@ -490,6 +474,7 @@ function pintarFiltros(){
   document.getElementById('x-n').textContent='('+fmt(DATA.filter(esIncDef).length)+')';
   document.getElementById('x-lab').classList.toggle('activo', EXCL_INC);
   document.getElementById('f-res').textContent=fmt(VISTA.length)+' de '+fmt(DATA.length)+' embarcaciones';
+  document.getElementById('cuadroPdf').disabled = !VISTA.length;
   // El boton devuelve la pagina a como carga, no a "sin filtros": el estado
   // tiene un defecto propio y perderlo seria un viaje de ida.
   document.getElementById('f-reset').hidden = activos().every(esDefecto) && EXCL_INC;
@@ -557,11 +542,11 @@ function conEspecie(filas, cod, col, extra){
   return filas.filter(r => tieneEspecie(r, col||CHD, cod) && (!extra || extra(r))).length;
 }
 // Columnas de especie del cuadro cruzado. Las comparten la tabla en pantalla y
-// los dos reportes exportables: tocar una columna aqui cambia los tres destinos
-// a la vez, y por eso viven fuera de build().
+// su PDF: tocar una columna aqui cambia los dos destinos a la vez, y por eso
+// viven fuera de build().
 // "Anch. CHI" no es solo la especie: la embarcacion ademas tiene que tener PMCE
 // NORTE-CENTRO asignado (columna AD con dato), condicion que viaja igual al
-// Excel y al PDF. Ojo con esa columna: la cuota se reasigna por temporada, asi
+// PDF. Ojo con esa columna: la cuota se reasigna por temporada, asi
 // que no solo cambia cuantas filas la tienen sino cuales. No anotar aqui una
 // cifra esperada: envejece en dias.
 const COLS_ESP=[['Anch. CHI',CHI,'ANCH',conDato(PMCE_NC)],['Anch. CHD',CHD,'ANCH'],['Atún',CHD,'ATU'],
@@ -576,9 +561,8 @@ function regimenesDe(filas){
   return [...ORDEN_REG.filter(g=>presentes.includes(g)),
           ...presentes.filter(g=>!ORDEN_REG.includes(g)).sort()];
 }
-// Calculo puro del cuadro cruzado, sin tocar el DOM. Lo usan la tabla en
-// pantalla (sobre VISTA) y los exportadores (sobre su propia consulta), asi que
-// cuadro visible y cuadro descargado no pueden discrepar.
+// Calculo puro del cuadro cruzado, sin tocar el DOM. Lo usan la tabla y su PDF,
+// ambos sobre VISTA, asi que cuadro visible y cuadro descargado no pueden discrepar.
 function matrizCruz(filas, cols){
   const regs=regimenesDe(filas);
   const tot=new Array(cols.length+1).fill(0);
@@ -734,7 +718,7 @@ document.addEventListener('click', e=>{
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') abrirPanel(null); });
 
 // ====== REPORTES DESCARGABLES ======
-// Los dos paneles leen DATA, no VISTA: son la unica excepcion a la regla del
+// El panel de listado lee DATA, no VISTA: es la unica excepcion a la regla del
 // tablero, y es deliberada. Se decidio asi para que el archivo emitido sea
 // exactamente lo que muestra el panel y no dependa del estado de la barra de
 // filtros de arriba, que desde aqui no se ve.
@@ -749,9 +733,8 @@ const ESTADOS_REP=[['OPERATIVA','Operativa (vigente + suspendido)',['VIGENTE','S
                    ['ANULADO','Solo anulado',['ANULADO']],
                    ['TODOS','Todos los estados',null]];
 const filaEstado = k => ESTADOS_REP.find(e=>e[0]===k) || ESTADOS_REP[0];
-const DEF_Q1={reg:'',esp:'',est:'OPERATIVA',inc:true};
 const DEF_Q2={reg:'',esp:'',est:'OPERATIVA',apar:'',inc:true};
-const q1=Object.assign({},DEF_Q1), q2=Object.assign({},DEF_Q2);
+const q2=Object.assign({},DEF_Q2);
 
 // Recorta DATA con los criterios del panel; devuelve un arreglo nuevo y no toca
 // VISTA ni DATA.
@@ -765,8 +748,6 @@ function repFiltrar(q){
     (!q.apar || (r['APAREJO']||'').split(';')[0].trim()===q.apar) &&
     (!esp || (tieneEspecie(r,esp[1],esp[2]) && (!esp[3] || esp[3](r)))));
 }
-// Con una especie elegida el cuadro sale con "Flota general" y esa sola columna.
-const colsDe = q => q.esp ? COLS_ESP.filter(c=>c[0]===q.esp) : COLS_ESP;
 // Los criterios viajan impresos en el archivo: sin eso, dos reportes distintos
 // se ven identicos una semana despues.
 function repDesc(q){
@@ -775,6 +756,20 @@ function repDesc(q){
            filaEstado(q.est)[1]];
   if(q.apar) p.push('Aparejo: '+q.apar);
   if(q.inc) p.push('sin INC. DEF');
+  return p.join(' · ');
+}
+// El PDF tiene que declarar con que recorte se emitio, o dos archivos distintos
+// se ven identicos una semana despues. Sale de la barra global, no de un panel.
+// Una sola linea: pdfHead la centra a ancho fijo y si se parte en dos se le
+// encima a la tabla, que arranca en Y=80.
+function descVista(){
+  const p=[];
+  const reg=FILTROS.reg.sel, est=FILTROS.est.sel;
+  p.push(!reg.size ? 'Todos los regímenes'
+        : reg.size<=3 ? [...reg].map(k=>regimenLargo(k)||'(sin dato)').join(', ')
+        : reg.size+' regímenes seleccionados');
+  p.push(!est.size ? 'Todos los estados' : [...est].join(', '));
+  if(EXCL_INC) p.push('sin INC. DEF');
   return p.join(' · ');
 }
 
@@ -810,9 +805,6 @@ function poblarReportes(){
   const selEst=(id,val)=>{ const el=document.getElementById(id);
     el.innerHTML=ESTADOS_REP.map(e=>'<option value="'+e[0]+'">'+esc(e[1])+'</option>').join('');
     el.value=val; };
-  q1.reg=opciones('q1Reg','Todos los regímenes',entRegs,q1.reg);
-  q1.esp=opciones('q1Esp','Todas las especies',entEsp,q1.esp);
-  selEst('q1Est',q1.est); document.getElementById('q1Inc').checked=q1.inc;
   q2.reg=opciones('q2Reg','Todos los regímenes',entRegs,q2.reg);
   q2.esp=opciones('q2Esp','Todas las especies',entEsp,q2.esp);
   q2.apar=opciones('q2Apar','Todos los aparejos',entApa,q2.apar);
@@ -822,11 +814,7 @@ function poblarReportes(){
 // El boton se apaga con la consulta en cero: mejor eso que emitir un archivo
 // con la cabecera y ninguna fila.
 function repContar(){
-  const f1=repFiltrar(q1), f2=repFiltrar(q2);
-  const c1=document.getElementById('q1Count');
-  c1.innerHTML='<b>'+fmt(f1.length)+'</b> embarcaciones · <b>'+fmt(regimenesDe(f1).length)+'</b> regímenes en el cuadro';
-  c1.classList.toggle('cero', f1.length===0);
-  document.getElementById('q1Go').disabled = f1.length===0;
+  const f2=repFiltrar(q2);
   const c2=document.getElementById('q2Count');
   c2.innerHTML='<b>'+fmt(f2.length)+'</b> embarcaci'+(f2.length===1?'ón':'ones')+' en la consulta';
   c2.classList.toggle('cero', f2.length===0);
@@ -861,7 +849,7 @@ function saveBook(hojas, nombre){
 }
 // Volcado de la matriz completa: todas las columnas de la hoja y todas sus filas,
 // sin ningun filtro. Es la salida cruda del tablero, la que sirve de respaldo o
-// para trabajar los datos aparte; los otros dos reportes son los curados.
+// para trabajar los datos aparte; el listado es la salida curada.
 // Las columnas numericas van por lista blanca, NO por "parece un numero": si se
 // dejara adivinar, RUC, NRO SERIE MOTOR y TRANSMISOR se convertirian en float y
 // perderian digitos. Todo lo que no esta aqui sale como texto, que es el default
@@ -928,14 +916,15 @@ const detalleAoa = filas => [DET_COLS].concat(filas.map(r=>DET_COLS.map(c=>{
   return (r[c]||'').trim();
 })));
 
-// ====== REPORTE 1: CUADRO POR REGIMEN Y ESPECIE ======
-function rep1Pdf(){
-  const filas=repFiltrar(q1); if(!filas.length) return;
-  const cols=colsDe(q1);
-  const {regs,filasVals,tot}=matrizCruz(filas,cols);
+// El PDF del cuadro sale de VISTA y de COLS_ESP completas: es exactamente lo que
+// el usuario esta viendo en pantalla, con el recorte de la barra de filtros. Una
+// sola fuente, por eso el cuadro puede tener boton propio.
+function cuadroPdf(){
+  if(!VISTA.length) return;
+  const {regs,filasVals,tot}=matrizCruz(VISTA,COLS_ESP);
   const doc=pdfNew('landscape');
   doc.autoTable({
-    head:[['Régimen','Flota general'].concat(cols.map(c=>c[0]))],
+    head:[['Régimen','Flota general'].concat(COLS_ESP.map(c=>c[0]))],
     body:regs.map((g,i)=>[regimenLargo(g)||'(sin dato)'].concat(filasVals[i].map(x=>fmt(x)))),
     foot:[['TOTAL'].concat(tot.map(x=>fmt(x)))],
     startY:80, margin:{top:80,left:30,right:30,bottom:42},
@@ -948,33 +937,12 @@ function rep1Pdf(){
       if(d.section==='foot' && d.column.index===0) d.cell.styles.halign='left';
       grisCeros(d);
     },
-    didDrawPage:()=>pdfHead(doc,'FLOTA PESQUERA POR RÉGIMEN Y TIPO DE ACCESO',repDesc(q1))
+    didDrawPage:()=>pdfHead(doc,'FLOTA PESQUERA POR RÉGIMEN Y TIPO DE ACCESO',descVista())
   });
-  if(cols.some(c=>c[0]==='Anch. CHI')){
-    doc.setFont('helvetica','italic').setFontSize(7.5).setTextColor.apply(doc,C_TXT);
-    doc.text(NOTA_CHI,30,doc.lastAutoTable.finalY+16);
-  }
+  doc.setFont('helvetica','italic').setFontSize(7.5).setTextColor.apply(doc,C_TXT);
+  doc.text(NOTA_CHI,30,doc.lastAutoTable.finalY+16);
   pdfFoot(doc);
-  doc.save('Flota_por_regimen_y_especie_'+fileStamp()+'.pdf');
-}
-function rep1Xlsx(){
-  const filas=repFiltrar(q1); if(!filas.length) return;
-  const cols=colsDe(q1);
-  const {regs,filasVals,tot}=matrizCruz(filas,cols);
-  const NC=cols.length+2, ancho=r=>({s:{r:r,c:0},e:{r:r,c:NC-1}});
-  const aoa=[['FLOTA PESQUERA POR RÉGIMEN Y TIPO DE ACCESO'],
-             ['Criterios: '+repDesc(q1)],
-             ['Fecha de emisión: '+stamp()],
-             [NOTA_CHI],
-             [],
-             ['Régimen','Flota general'].concat(cols.map(c=>c[0]))];
-  regs.forEach((g,i)=>aoa.push([regimenLargo(g)||'(sin dato)'].concat(filasVals[i])));
-  aoa.push(['TOTAL'].concat(tot));
-  saveBook([
-    {name:'Cuadro',aoa:aoa,merges:[0,1,2,3].map(ancho),
-     cols:[{wch:40}].concat(new Array(NC-1).fill({wch:14}))},
-    {name:'Detalle',aoa:detalleAoa(filas),cols:DET_ANCHOS}
-  ],'Flota_por_regimen_y_especie_'+fileStamp()+'.xlsx');
+  doc.save('Flota_por_regimen_y_tipo_de_acceso_'+fileStamp()+'.pdf');
 }
 
 // ====== REPORTE 2: LISTADO DE EMBARCACIONES ======
@@ -1089,20 +1057,16 @@ function rep2Xlsx(){
 }
 
 // ====== PANEL: EVENTOS ======
-[['q1Reg','reg',q1],['q1Esp','esp',q1],['q1Est','est',q1],
- ['q2Reg','reg',q2],['q2Esp','esp',q2],['q2Est','est',q2],['q2Apar','apar',q2]]
+[['q2Reg','reg',q2],['q2Esp','esp',q2],['q2Est','est',q2],['q2Apar','apar',q2]]
 .forEach(([id,campo,q])=>document.getElementById(id)
   .addEventListener('change', e=>{ q[campo]=e.target.value; repContar(); }));
-[['q1Inc',q1],['q2Inc',q2]].forEach(([id,q])=>document.getElementById(id)
+[['q2Inc',q2]].forEach(([id,q])=>document.getElementById(id)
   .addEventListener('change', e=>{ q.inc=e.target.checked; repContar(); }));
-document.getElementById('q1Go').addEventListener('click',
-  ()=>document.getElementById('q1Fmt').value==='xlsx' ? rep1Xlsx() : rep1Pdf());
+document.getElementById('cuadroPdf').addEventListener('click', cuadroPdf);
 document.getElementById('q2Go').addEventListener('click',
   ()=>document.getElementById('q2Fmt').value==='xlsx' ? rep2Xlsx() : rep2Pdf());
 // "Limpiar" devuelve el panel a como carga (flota operativa, sin INC. DEF), no a
 // "sin criterio": ese defecto es el que reproduce el reporte oficial.
-document.getElementById('q1Clear').addEventListener('click',
-  ()=>{ Object.assign(q1,DEF_Q1); poblarReportes(); });
 document.getElementById('q2Clear').addEventListener('click',
   ()=>{ Object.assign(q2,DEF_Q2); poblarReportes(); });
 document.getElementById('dl-matriz').addEventListener('click', descargarMatriz);

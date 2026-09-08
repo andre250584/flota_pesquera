@@ -122,8 +122,8 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   cifras (tablas `.tabla`, no gráficos), así que su rama de `build()` no toca `CHARTS`.
 
 ## Reportes (pestaña)
-- La pestaña tiene tres bloques: el **cuadro cruzado en pantalla** (arriba, lee `VISTA`) y dos
-  **paneles de reporte descargable** (abajo, leen `DATA`).
+- La pestaña tiene dos bloques: el **cuadro cruzado en pantalla** (arriba, lee `VISTA` y tiene su
+  botón de PDF) y el panel **«Listado de embarcaciones»** (abajo, lee `DATA`).
 - «Flota pesquera por régimen y tipo de acceso» cruza régimen (filas) × especie (columnas), con fila
   TOTAL. `Anch. CHI` sale de `ESPECIE CHI VIGENTES`; el resto de las columnas, de `ESPECIE CHD
   VIGENTES`. **`Anch. CHI` lleva una condición extra**: además de la especie, la embarcación tiene
@@ -134,9 +134,9 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   Los regímenes fuera de `ORDEN_REG` se agregan al final en vez de desaparecer: el reporte
   oficial en papel solo lista cinco, pero el cuadro no puede esconder embarcaciones.
 - `COLS_ESP`, `ORDEN_REG`, `regimenesDe()` y `matrizCruz()` viven **fuera de `build()`**, en ámbito
-  de módulo: los comparten la tabla en pantalla y los dos reportes. `matrizCruz(filas, cols)` es puro
+  de módulo: los comparten la tabla en pantalla y su PDF. `matrizCruz(filas, cols)` es puro
   (no toca el DOM) y devuelve `{regs, filasVals, tot}`. Agregar o quitar una columna en `COLS_ESP`
-  cambia los tres destinos a la vez — pantalla, Excel y PDF —, que es justamente el punto: antes el
+  cambia los dos destinos a la vez — pantalla y PDF —, que es justamente el punto: antes el
   cálculo estaba dentro de la rama `build('reportes')` y no se podía reutilizar sin duplicarlo.
 - Las cifras del cuadro reproducen el reporte oficial con diferencias de 1 a 3 embarcaciones, porque
   la hoja es viva (`Anch. CHI` solo cuadra con la condición del PMCE puesta; sin ella se pasa). El recorte que lo reproduce es justamente el de arranque: vigentes + suspendidas,
@@ -162,17 +162,16 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   352 · 11 · 28 · 1.
 
 ## Reportes descargables (Excel / PDF)
-- El botón «⤓ Excel» de la cabecera es una tercera salida: vuelca `MATRIZ` completa, con todas
+- El botón «⤓ Excel» de la cabecera vuelca `MATRIZ` completa, con todas
   las columnas en el orden de `CAMPOS` y todas las filas, sin aplicar filtros. Es la salida cruda,
-  frente a los dos reportes curados que leen `DATA` con los criterios de sus paneles. Las columnas
+  frente al listado curado que lee `DATA` con los criterios de su panel. Las columnas
   numéricas se convierten por la lista blanca `NUM_MATRIZ`; el resto permanece como texto para no
   romper identificadores como RUC, N.° de serie y transmisor. El volcado no pasa por `r2()`, porque
   redondear a dos decimales destruiría la precisión de los valores PMCE.
-- Dos paneles al pie de la pestaña Reportes: **«Flota pesquera por régimen y especie»** (el cuadro
-  cruzado, hojas `Cuadro` + `Detalle`) y **«Listado de embarcaciones»** (padrón agrupado por régimen
-  con subtotales, hojas `Listado` + `Resumen`). Cada uno emite en PDF (`jspdf-autotable`, apaisado) o
-  en Excel (`saveBook()`), con los criterios elegidos impresos en la cabecera del archivo.
-- **Los paneles leen `DATA`, no `VISTA`.** Es la única excepción a la regla del tablero y es
+- El panel al pie de la pestaña Reportes es **«Listado de embarcaciones»** (padrón agrupado por régimen
+  con subtotales, hojas `Listado` + `Resumen`). Emite en PDF (`jspdf-autotable`, apaisado) o en Excel
+  (`saveBook()`), con los criterios elegidos impresos en la cabecera del archivo.
+- **El panel lee `DATA`, no `VISTA`.** Es la única excepción a la regla del tablero y es
   deliberada: el archivo emitido tiene que ser exactamente lo que muestra el panel, sin depender del
   estado de la barra de filtros de arriba, que desde ahí no se ve. Los selectores se llenan también
   desde `DATA` (`poblarReportes()`, llamada desde `cargar()`, no desde `build()`: los `<select>`
@@ -199,8 +198,14 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   la regla de `POTENCIA MOTOR` más arriba.
 - Los colores del PDF son los mismos de la identidad, en RGB para jsPDF (`C_ROJO`, `C_TXT`, `C_ALT`…).
   No hay tinta nueva; los ceros salen en gris, como la clase `.cero` de la tabla en pantalla.
-- **No se agregaron botones de exportar al cuadro de pantalla**: tendría los filtros globales como
-  fuente y los paneles los suyos, o sea dos botones que dicen lo mismo y dan cifras distintas.
+- **El cuadro de pantalla sí tiene botón de PDF**: fue posible al eliminar el panel «Flota pesquera
+  por régimen y especie» que competía con él. Ahora hay una sola fuente para ese cuadro, `VISTA`, y
+  el PDF usa siempre las `COLS_ESP` completas. `descVista()` describe bajo el título el recorte de la
+  barra global (régimen, estado y exclusión de INC. DEF) en una sola línea; si se parte en dos,
+  `pdfHead` se la encima a la tabla, que arranca en `Y=80`.
+- Al eliminar ese panel se perdió su hoja Excel `Detalle`. Es aceptable: el Excel del «Listado de
+  embarcaciones» conserva el detalle filtrable y el botón «⤓ Excel» de la cabecera entrega la matriz
+  completa.
 
 ## Trampa conocida (no es un bug que arreglar)
 - En algunos entornos de previsualización local, el `fetch` al CSV falla por **CORS**. El código ya detecta ese caso y muestra un mensaje claro en `#errbox`.
