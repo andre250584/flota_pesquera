@@ -183,6 +183,13 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   «sin criterio». Se compara con `estadoPermiso()`, nunca con el valor crudo.
 - El botón «Generar reporte» se apaga con la consulta en cero: mejor eso que un archivo con cabecera
   y ninguna fila.
+- **Los desplegables del panel muestran solo el nombre, sin conteo, y es deliberado.** Llevaron un
+  «(846)» al costado y se retiró en septiembre de 2026: ese número salía de `DATA` entero, sin los
+  criterios del panel, así que contradecía al contador en vivo que está justo debajo — la opción
+  decía 846 y el reporte daba 392. No volver a agregarlo «para ayudar»: quien quiera saber cuántas
+  son, las cuenta el contador, que sí responde a lo elegido. El orden de las listas no depende de
+  ningún conteo (régimen por `ORDEN_REG`, especie por `COLS_ESP`); el único que se sigue calculando
+  es el del aparejo, y solo para ordenarlo de mayor a menor.
 - En Excel los números van **como número**, no como texto con formato (`r2()` limpia el ruido
   binario de las sumas); si salieran formateados la hoja no los sumaría. El RUC va como texto a
   propósito: es un identificador, no una cantidad. En el PDF sí se formatean con `fmt()`/`nf2()`.

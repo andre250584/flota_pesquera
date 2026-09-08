@@ -784,10 +784,14 @@ const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;')
 // Las opciones se arman desde DATA, nunca desde VISTA. Al recargar sobrevive lo
 // elegido solo si su valor sigue existiendo en los datos frescos, igual que
 // hacen las casillas de la barra global.
+// Van SIN conteo a proposito. Un numero aqui saldria de DATA entero, sin los
+// criterios del panel, y contradiria al contador en vivo que esta tres
+// centimetros mas abajo: la opcion decia "(846)" y el reporte daba 392. Quien
+// quiera saber cuantas son, las cuenta ese contador, que si responde a lo elegido.
 function opciones(id, todos, ents, actual){
   const el=document.getElementById(id);
   el.innerHTML='<option value="">'+esc(todos)+'</option>'
-    + ents.map(([k,n,lab])=>'<option value="'+esc(k)+'">'+esc(lab)+' ('+fmt(n)+')</option>').join('');
+    + ents.map(([k,lab])=>'<option value="'+esc(k)+'">'+esc(lab)+'</option>').join('');
   el.value = ents.some(e=>e[0]===actual) ? actual : '';
   return el.value;
 }
@@ -795,12 +799,14 @@ function poblarReportes(){
   const cuenta=(campo,mapfn)=>{ const m={};
     DATA.forEach(r=>{ let k=(r[campo]||'').trim(); if(mapfn)k=mapfn(k); if(k!=='')m[k]=(m[k]||0)+1; });
     return m; };
-  const nreg=cuenta('REGIMEN');
-  const entRegs=regimenesDe(DATA).filter(Boolean).map(g=>[g,nreg[g]||0,regimenLargo(g)]);
-  const entEsp=COLS_ESP.map(c=>[c[0],
-    DATA.filter(r=>tieneEspecie(r,c[1],c[2]) && (!c[3]||c[3](r))).length, c[0]]);
+  // El orden de regimen y especie ya lo dan ORDEN_REG y COLS_ESP, asi que no hay
+  // nada que contar para armar estas dos listas.
+  const entRegs=regimenesDe(DATA).filter(Boolean).map(g=>[g,regimenLargo(g)]);
+  const entEsp=COLS_ESP.map(c=>[c[0],c[0]]);
+  // El aparejo si necesita su frecuencia, pero solo para ordenarse de mayor a
+  // menor; la cifra no se muestra.
   const napa=cuenta('APAREJO', v=>v.split(';')[0].trim());
-  const entApa=Object.entries(napa).sort((a,b)=>b[1]-a[1]).map(([k,n])=>[k,n,k]);
+  const entApa=Object.entries(napa).sort((a,b)=>b[1]-a[1]).map(([k])=>[k,k]);
   const selEst=(id,val)=>{ const el=document.getElementById(id);
     el.innerHTML=ESTADOS_REP.map(e=>'<option value="'+e[0]+'">'+esc(e[1])+'</option>').join('');
     el.value=val; };
