@@ -178,8 +178,8 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   existen aunque la pestaña nunca se abra, y así el panel queda al día tras cada «↻ Actualizar»).
 - **Columnas del listado** (septiembre de 2026): se retiraron `ESLORA` y `APAREJO`, y `PMCE
   NORTE-CENTRO` y `PMCE SUR` van **al final**, tanto en el PDF (`LIST_HEAD`/`filaPdf`) como en la hoja
-  `Listado` de Excel (`DET_COLS`). El PMCE sale con todos sus decimales: en el PDF con `pmcePdf()`, no
-  `nf2()`, y en Excel sin `r2()` (`DET_PMCE`). El filtro «Aparejo principal» del panel se mantiene.
+  `Listado` de Excel (`DET_COLS`). El PMCE sale **siempre a 6 decimales** cuando tiene valor: en el PDF con
+  `pmcePdf()`, no `nf2()`; en Excel como número sin `r2()` con formato de celda `0.000000` (`DET_PMCE`). El filtro «Aparejo principal» del panel se mantiene.
 - El estado del permiso es un desplegable de opción única, no casillas: su defecto **«Operativa
   (vigente + suspendido)»** más «Excluir INC. DEF» marcado es el recorte que reproduce el reporte
   oficial, el mismo con el que arranca el tablero. «Limpiar» devuelve el panel a ese defecto, no a
