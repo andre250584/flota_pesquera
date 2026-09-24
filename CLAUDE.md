@@ -27,7 +27,7 @@ Hermano del dashboard de plantas pesqueras. Trabajamos **un cambio a la vez**.
 - La columna de embarcación es `MATRICULA`; una fila = una embarcación. `MATRIZ` conserva todas
   las filas tal como llegan, incluidas las que no tienen `MATRICULA`, y `CAMPOS` conserva el orden
   real de los encabezados del CSV. `DATA` descarta las filas sin `MATRICULA` de forma intencional.
-- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado), `ESPECIE CHD VIGENTES` (columna Z), `ESPECIE CHI VIGENTES` (columna AB), `PMCE NORTE-CENTRO` (columna AD). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
+- Columnas que consume el código: `MATRICULA`, `PERMISO PESCA`, `CASCO`, `ESLORA`, `REGIMEN`, `APAREJO`, `ARMADOR`, `CAPBOD_M3`, `POTENCIA MOTOR`, `FECHA RESOLUCION`, `INC. DEF` (columna U; el punto y el espacio del nombre son parte del encabezado), `ESPECIE CHD VIGENTES` (columna Z), `ESPECIE CHI VIGENTES` (columna AB), `PMCE NORTE-CENTRO` (columna AD), `PMCE SUR` (solo en el listado). Renombrar una columna en la hoja rompe el gráfico o KPI correspondiente en silencio (queda `(sin dato)` o 0).
 
 ## Flujo de ejecución
 1. `cargar()` — se llama al final del script y desde el botón «↻ Actualizar». Añade `?t=Date.now()` al URL y usa `cache:'no-store'` para evitar el CSV cacheado; llama a `destroyAll()` antes de recargar.
@@ -176,6 +176,10 @@ dashboard de plantas. **El rojo sigue siendo la identidad; el color en los gráf
   estado de la barra de filtros de arriba, que desde ahí no se ve. Los selectores se llenan también
   desde `DATA` (`poblarReportes()`, llamada desde `cargar()`, no desde `build()`: los `<select>`
   existen aunque la pestaña nunca se abra, y así el panel queda al día tras cada «↻ Actualizar»).
+- **Columnas del listado** (septiembre de 2026): se retiraron `ESLORA` y `APAREJO`, y `PMCE
+  NORTE-CENTRO` y `PMCE SUR` van **al final**, tanto en el PDF (`LIST_HEAD`/`filaPdf`) como en la hoja
+  `Listado` de Excel (`DET_COLS`). El PMCE sale con todos sus decimales: en el PDF con `pmcePdf()`, no
+  `nf2()`, y en Excel sin `r2()` (`DET_PMCE`). El filtro «Aparejo principal» del panel se mantiene.
 - El estado del permiso es un desplegable de opción única, no casillas: su defecto **«Operativa
   (vigente + suspendido)»** más «Excluir INC. DEF» marcado es el recorte que reproduce el reporte
   oficial, el mismo con el que arranca el tablero. «Limpiar» devuelve el panel a ese defecto, no a

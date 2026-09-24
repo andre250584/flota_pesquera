@@ -904,15 +904,20 @@ const NOTA_CHI='Anch. CHI cuenta además solo las embarcaciones con PMCE NORTE-C
 // Volcado de detalle: las columnas crudas de la hoja, para poder auditar cada
 // cifra del cuadro. Los numeros van como numero, no como texto con formato, o la
 // hoja de calculo no los suma.
-const DET_COLS=['MATRICULA','EMBARCACION','REGIMEN','PERMISO PESCA','ARMADOR','RUC','CASCO','ESLORA',
-                'CAPBOD_M3','POTENCIA MOTOR','APAREJO','RESOLUCION','FECHA RESOLUCION',
-                'ESPECIE CHD VIGENTES','ESPECIE CHI VIGENTES','PMCE NORTE-CENTRO','INC. DEF'];
-const DET_ANCHOS=[{wch:14},{wch:30},{wch:34},{wch:14},{wch:42},{wch:13},{wch:16},{wch:9},{wch:11},
-                  {wch:13},{wch:22},{wch:30},{wch:13},{wch:34},{wch:16},{wch:16},{wch:9}];
-const DET_NUM=new Set(['ESLORA','CAPBOD_M3','POTENCIA MOTOR']);
+// Las dos columnas PMCE van al final del listado.
+const DET_COLS=['MATRICULA','EMBARCACION','REGIMEN','PERMISO PESCA','ARMADOR','RUC','CASCO',
+                'CAPBOD_M3','POTENCIA MOTOR','RESOLUCION','FECHA RESOLUCION',
+                'ESPECIE CHD VIGENTES','ESPECIE CHI VIGENTES','INC. DEF','PMCE NORTE-CENTRO','PMCE SUR'];
+const DET_ANCHOS=[{wch:14},{wch:30},{wch:34},{wch:14},{wch:42},{wch:13},{wch:16},{wch:11},
+                  {wch:13},{wch:30},{wch:13},{wch:34},{wch:16},{wch:9},{wch:18},{wch:12}];
+const DET_NUM=new Set(['CAPBOD_M3','POTENCIA MOTOR']);
+// PMCE sin r2(): trae 5-6 decimales y redondear a 2 la destruye (igual que el
+// volcado de la matriz).
+const DET_PMCE=new Set(['PMCE NORTE-CENTRO','PMCE SUR']);
 const detalleAoa = filas => [DET_COLS].concat(filas.map(r=>DET_COLS.map(c=>{
   if(c==='FECHA RESOLUCION') return fechaCorta(r[c]);
   if(DET_NUM.has(c)){ const x=num(r[c]); return x===null?'':r2(x); }
+  if(DET_PMCE.has(c)){ const x=num(r[c]); return x===null?'':x; }
   return (r[c]||'').trim();
 })));
 
@@ -958,14 +963,16 @@ function rep2Grupos(){
     return {reg:g, filas:fs, cap:fs.reduce((s,r)=>s+(num(r['CAPBOD_M3'])||0),0)};
   });
 }
-const LIST_HEAD=['N°','MATRÍCULA','EMBARCACIÓN','ARMADOR','ESLORA (m)','BODEGA (m³)',
-                 'APAREJO','RESOLUCIÓN','FECHA RES.','PERMISO'];
+const LIST_HEAD=['N°','MATRÍCULA','EMBARCACIÓN','ARMADOR','BODEGA (m³)',
+                 'RESOLUCIÓN','FECHA RES.','PERMISO','PMCE NORTE-CENTRO','PMCE SUR'];
 const numPdf = v => { const x=num(v); return x===null?'—':nf2(x); };
+// El PMCE conserva sus decimales: con nf2() 0.10874 saldria 0,11.
+const pmcePdf = v => { const x=num(v); return x===null?'—':x.toLocaleString('es-PE',{maximumFractionDigits:6}); };
 const txt = v => String(v==null?'':v).trim();
 const filaPdf = (r,i) => [i+1, txt(r['MATRICULA']), txt(r['EMBARCACION']), txt(r['ARMADOR']),
-  numPdf(r['ESLORA']), numPdf(r['CAPBOD_M3']), txt(r['APAREJO']).split(';')[0].trim(),
-  txt(r['RESOLUCION'])||'—',
-  fechaCorta(r['FECHA RESOLUCION'])||'—', estadoPermiso(txt(r['PERMISO PESCA']))||'—'];
+  numPdf(r['CAPBOD_M3']), txt(r['RESOLUCION'])||'—',
+  fechaCorta(r['FECHA RESOLUCION'])||'—', estadoPermiso(txt(r['PERMISO PESCA']))||'—',
+  pmcePdf(r['PMCE NORTE-CENTRO']), pmcePdf(r['PMCE SUR'])];
 
 function rep2Pdf(){
   const grupos=rep2Grupos(); if(!grupos.length) return;
@@ -985,8 +992,8 @@ function rep2Pdf(){
     footStyles:{fillColor:C_TXT,textColor:255,fontStyle:'bold'},
     alternateRowStyles:{fillColor:C_ALT},
     columnStyles:{0:{halign:'right',cellWidth:22},1:{cellWidth:62},2:{cellWidth:104},3:{cellWidth:180},
-                  4:{halign:'right',cellWidth:44},5:{halign:'right',cellWidth:50},
-                  6:{cellWidth:74},8:{halign:'center',cellWidth:50},9:{halign:'center',cellWidth:54}},
+                  4:{halign:'right',cellWidth:50},6:{halign:'center',cellWidth:50},7:{halign:'center',cellWidth:54},
+                  8:{halign:'right',cellWidth:62},9:{halign:'right',cellWidth:50}},
     didDrawPage:cabecera
   };
   grupos.forEach((g,i)=>{
@@ -998,9 +1005,9 @@ function rep2Pdf(){
           styles:{fillColor:C_ALT,textColor:C_ROJO,halign:'left',fontStyle:'bold',fontSize:8,cellPadding:5}}],
         LIST_HEAD],
       body:g.filas.map(filaPdf),
-      foot:[[{content:'SUBTOTAL BODEGA (m³)',colSpan:5,styles:{halign:'right'}},
+      foot:[[{content:'SUBTOTAL BODEGA (m³)',colSpan:4,styles:{halign:'right'}},
              {content:nf2(g.cap),styles:{halign:'right'}},
-             {content:'',colSpan:4}]],
+             {content:'',colSpan:5}]],
       showFoot:'lastPage',
       startY: i===0 ? 80 : doc.lastAutoTable.finalY+16
     }));
